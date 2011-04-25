@@ -88,6 +88,7 @@ for ixu = 1:numel(m.Species)
     else
         % Write function and IsInput
         if isempty(regexp(func2str(xu.Value.Function), '@\(t,q\)repmat\([-+]?([0-9]*\.)?[0-9]+([eE][-+]?[0-9]+)?,1,numel\(t\)\)', 'once'))
+            % Input is not a constant
             fprintf(fid, ' %s true', func2str(xu.Value.Function));
         else
             % The function was originally a constant; extract it

@@ -1,5 +1,5 @@
-function kronModel = loadModelSbml(SimbioModel, Unames, Ynames, Ymembers, opts)
-%LOADMODELSBML converts a Simbiology model into a pseudo-kronecker
+function kronModel = LoadModelSbmlAnalytic(SimbioModel, Unames, Ynames, Ymembers, opts)
+%LoadModelSbmlAnalytic converts a Simbiology model into a pseudo-kronecker
 %   model, which interacts with the Kronecker Bio toolbox exactly like a
 %   Kronecker model, but with substantial performance reductions.
 % 
