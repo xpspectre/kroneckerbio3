@@ -560,6 +560,13 @@ nA5Entries = 0;
 nA6Entries = 0;
 naEntries = 0;
 
+nD1Entries = 0;
+nD2Entries = 0;
+nD3Entries = 0;
+nD4Entries = 0;
+nD5Entries = 0;
+nD6Entries = 0;
+
 dA1dkEntries = zeros(0,2);
 dA1dkValues  = zeros(0,1);
 dA2dkEntries = zeros(0,2);
@@ -574,6 +581,22 @@ dA6dkEntries = zeros(0,2);
 dA6dkValues  = zeros(0,1);
 dadkEntries = zeros(0,2);
 dadkValues  = zeros(0,1);
+
+dD1dkEntries = zeros(0,2);
+dD1dkValues  = zeros(0,1);
+dD2dkEntries = zeros(0,2);
+dD2dkValues  = zeros(0,1);
+dD3dkEntries = zeros(0,2);
+dD3dkValues  = zeros(0,1);
+dD4dkEntries = zeros(0,2);
+dD4dkValues  = zeros(0,1);
+dD5dkEntries = zeros(0,2);
+dD5dkValues  = zeros(0,1);
+dD6dkEntries = zeros(0,2);
+dD6dkValues  = zeros(0,1);
+
+S= sparse(nx,nr);
+
 
 for ir =1:nr
     % Determine reaction type and species indexes
@@ -610,6 +633,13 @@ for ir =1:nr
     parameter = find(strcmp(m.Reactions(ir).Parameter, {m.Parameters.Name}));
     assert(~isempty(parameter), 'KroneckerBio:FinalizeModel:MissingReactionParameter', 'Reaction %s (#%i) requires parameter %s, but no parameter by that name was found', m.Reactions(ir).Name, ir, m.Reactions(ir).Parameter)
     
+    
+    
+    
+    
+    
+    
+    
     % Switch on reactant state
     if reactant1Exists && ~reactant2Exists && reactant1IsState
         % A1 reaction
@@ -629,12 +659,14 @@ for ir =1:nr
         dA1dkEntries(nA1Entries-nAdd+1,1) = sub2ind([nx,nx], reactant1, reactant1);
         dA1dkEntries(nA1Entries-nAdd+1,2) = parameter;
         dA1dkValues(nA1Entries-nAdd+1)    = -1;
+        S(reactant1, ir) = S(reactant1, ir) -1; %% FF
         
         % Add product 1
         if product1IsState
             dA1dkEntries(nA1Entries-nAdd+2,1) = sub2ind([nx,nx], product1, reactant1);
             dA1dkEntries(nA1Entries-nAdd+2,2) = parameter;
             dA1dkValues(nA1Entries-nAdd+2)    = 1;
+            S(product1, ir)  = S(product1, ir) + 1; %%% FF
         end
         
         % Add product 2
@@ -642,7 +674,38 @@ for ir =1:nr
             dA1dkEntries(nA1Entries-nAdd+product1IsState+2,1) = sub2ind([nx,nx], product2, reactant1);
             dA1dkEntries(nA1Entries-nAdd+product1IsState+2,2) = parameter;
             dA1dkValues(nA1Entries-nAdd+product1IsState+2)    = 1;
+            S(product2, ir)  = S(product2, ir) + 1; %%% FF
         end
+        
+        
+        
+        
+        %%FFFFF%% D1 reaction
+        nAdd = 1 ;
+        nD1Entries = nD1Entries + nAdd;
+        
+        % Add more room in vector if necessary
+        currentLength = size(dD1dkEntries,1);
+        if nD1Entries > currentLength
+            addlength = max(currentLength, nAdd);
+            dD1dkEntries = [dD1dkEntries; zeros(addlength,2)];
+            dD1dkValues  = [dD1dkValues;  zeros(addlength,1)];
+        end
+        
+        % Add entries
+        % Substract reactant
+        dD1dkEntries(nD1Entries-nAdd+1,1) = sub2ind([nr,nx], ir, reactant1);
+        dD1dkEntries(nD1Entries-nAdd+1,2) = parameter;
+        dD1dkValues(nD1Entries-nAdd+1)    = 1;
+        %%FFFFFF%%
+        
+        
+        
+
+        
+        
+        
+        
     elseif reactant1Exists && reactant2Exists && reactant1IsState && reactant2IsState
         % A2 reaction
         % Order reactants so that freest species is second
@@ -667,17 +730,22 @@ for ir =1:nr
         dA2dkEntries(nA2Entries-nAdd+1,1) = sub2ind([nx,nx,nx], reactant1, reactant2, reactant1);
         dA2dkEntries(nA2Entries-nAdd+1,2) = parameter;
         dA2dkValues(nA2Entries-nAdd+1)    = -1;
+        S(reactant1, ir) = S(reactant1, ir) -1; %% FF
+      
         
         % Substract reactant 2
         dA2dkEntries(nA2Entries-nAdd+2,1) = sub2ind([nx,nx,nx], reactant2, reactant2, reactant1);
         dA2dkEntries(nA2Entries-nAdd+2,2) = parameter;
         dA2dkValues(nA2Entries-nAdd+2)    = -1;
+        S(reactant2, ir) = S(reactant2, ir) -1; %% FF
 
         % Add product 1
         if product1IsState
             dA2dkEntries(nA2Entries-nAdd+3,1) = sub2ind([nx,nx,nx], product1, reactant2, reactant1);
             dA2dkEntries(nA2Entries-nAdd+3,2) = parameter;
             dA2dkValues(nA2Entries-nAdd+3)    = 1;
+            S(product1, ir)  = S(product1, ir) + 1; %% FF
+   
         end
         
         % Add product 2
@@ -685,7 +753,37 @@ for ir =1:nr
             dA2dkEntries(nA2Entries-nAdd+product1IsState+3,1) = sub2ind([nx,nx,nx], product2, reactant2, reactant1);
             dA2dkEntries(nA2Entries-nAdd+product1IsState+3,2) = parameter;
             dA2dkValues(nA2Entries-nAdd+product1IsState+3)    = 1;
+            S(product2, ir)  = S(product2, ir) + 1; %% FF
+     
         end
+        
+        
+        
+        %%%% FFFFF %%%%%
+        % Increment entries
+        nAdd = 1;
+        nD2Entries = nD2Entries + nAdd;
+        
+        % Add more room in vector if necessary
+        currentLength = size(dD2dkEntries,1);
+        if nD2Entries > currentLength
+            addlength = max(currentLength, nAdd);
+            dD2dkEntries = [dD2dkEntries; zeros(addlength,2)];
+            dD2dkValues  = [dD2dkValues;  zeros(addlength,1)];
+        end
+        
+        % Add entries
+        dD2dkEntries(nD2Entries-nAdd+1,1) = sub2ind([nr,nx,nx], ir, reactant2, reactant1);
+        dD2dkEntries(nD2Entries-nAdd+1,2) = parameter;
+        dD2dkValues(nD2Entries-nAdd+1)    = 1;
+        %%%% FFFFF %%%%%
+        
+        
+        
+        
+        
+        
+        
     elseif reactant1Exists && reactant2Exists && xor(reactant2IsState, reactant1IsState)
         % Order reactants so that freest species is second
         if reactant1IsState
@@ -719,12 +817,14 @@ for ir =1:nr
             dA3dkEntries(nA3Entries-nAdd+1,1) = sub2ind([nx,nx,nu], reactant2, reactant2, reactant1);
             dA3dkEntries(nA3Entries-nAdd+1,2) = parameter;
             dA3dkValues(nA3Entries-nAdd+1)    = -1;
+            S(reactant2, ir) = S(reactant2, ir) -1; %%FF
             
             % Add product 1
             if product1IsState
                 dA3dkEntries(nA3Entries-nAdd+2,1) = sub2ind([nx,nx,nu], product1, reactant2, reactant1);
                 dA3dkEntries(nA3Entries-nAdd+2,2) = parameter;
                 dA3dkValues(nA3Entries-nAdd+2)    = 1;
+                S(product1, ir) = S(product1, ir) + 1; %%FF
             end
             
             % Add product 2
@@ -732,7 +832,36 @@ for ir =1:nr
                 dA3dkEntries(nA3Entries-nAdd+product1IsState+2,1) = sub2ind([nx,nx,nu], product2, reactant2, reactant1);
                 dA3dkEntries(nA3Entries-nAdd+product1IsState+2,2) = parameter;
                 dA3dkValues(nA3Entries-nAdd+product1IsState+2)    = 1;
+                S(product2, ir) = S(product2, ir) + 1; %%FF
             end
+            
+            
+                
+            
+            %%%% FFFFF %%%%%
+            % Increment entries
+            nAdd = 1;
+            nD3Entries = nD3Entries + nAdd;
+        
+            % Add more room in vector if necessary
+            currentLength = size(dD3dkEntries,1);
+            if nD3Entries > currentLength
+                addlength = max(currentLength, nAdd);
+                dD3dkEntries = [dD3dkEntries; zeros(addlength,2)];
+                dD3dkValues  = [dD3dkValues;  zeros(addlength,1)];
+            end
+        
+            % Add entries
+            dD3dkEntries(nD3Entries-nAdd+1,1) = sub2ind([nr,nx,nu], ir, reactant2, reactant1);
+            dD3dkEntries(nD3Entries-nAdd+1,2) = parameter;
+            dD3dkValues(nD3Entries-nAdd+1)    = 1;
+            %%%% FFFFF %%%%%
+            
+            
+            
+            
+            
+            
         else%reactant1IsState
             % A4 reaction
             % Increment entries
@@ -752,12 +881,14 @@ for ir =1:nr
             dA4dkEntries(nA4Entries-nAdd+1,1) = sub2ind([nx,nu,nx], reactant1, reactant2, reactant1);
             dA4dkEntries(nA4Entries-nAdd+1,2) = parameter;
             dA4dkValues(nA4Entries-nAdd+1)    = -1;
+            S(reactant1, ir) = S(reactant1, ir) -1; %%FF
             
             % Add product 1
             if product1IsState
                 dA4dkEntries(nA4Entries-nAdd+2,1) = sub2ind([nx,nu,nx], product1, reactant2, reactant1);
                 dA4dkEntries(nA4Entries-nAdd+2,2) = parameter;
                 dA4dkValues(nA4Entries-nAdd+2)    = 1;
+                S(product1, ir) = S(product1, ir) + 1; %%FF
             end
             
             % Add product 2
@@ -765,8 +896,34 @@ for ir =1:nr
                 dA4dkEntries(nA4Entries-nAdd+product1IsState+2,1) = sub2ind([nx,nu,nx], product2, reactant2, reactant1);
                 dA4dkEntries(nA4Entries-nAdd+product1IsState+2,2) = parameter;
                 dA4dkValues(nA4Entries-nAdd+product1IsState+2)    = 1;
+                S(product2, ir) = S(product2, ir) + 1; %%FF
             end
         end
+        
+        
+            %%%% FFFFF %%%%%
+            % Increment entries
+            nAdd = 1;
+            nD4Entries = nD4Entries + nAdd;
+        
+            % Add more room in vector if necessary
+            currentLength = size(dD4dkEntries,1);
+            if nD4Entries > currentLength
+                addlength = max(currentLength, nAdd);
+                dD4dkEntries = [dD4dkEntries; zeros(addlength,2)];
+                dD4dkValues  = [dD4dkValues;  zeros(addlength,1)];
+            end
+        
+            % Add entries
+            dD4dkEntries(nD4Entries-nAdd+1,1) = sub2ind([nr,nu,nx], ir, reactant2, reactant1);
+            dD4dkEntries(nD4Entries-nAdd+1,2) = parameter;
+            dD4dkValues(nD4Entries-nAdd+1)    = 1;
+            %%%% FFFFF %%%%%
+        
+        
+        
+        
+        
     elseif reactant1Exists && reactant2Exists && ~reactant1IsState && ~reactant2IsState
         % A5 reaction
         % Order reactants so that freest species is second
@@ -792,6 +949,7 @@ for ir =1:nr
             dA5dkEntries(nA5Entries-nAdd+1,1) = sub2ind([nx,nu,nu], product1, reactant2, reactant1);
             dA5dkEntries(nA5Entries-nAdd+1,2) = parameter;
             dA5dkValues(nA5Entries-nAdd+1)    = 1;
+            S(product1, ir) = S(product1, ir) + 1; %%FF
         end
         
         % Add product 2
@@ -799,7 +957,35 @@ for ir =1:nr
             dA5dkEntries(nA5Entries-nAdd+product1IsState+1,1) = sub2ind([nx,nu,nu], product2, reactant2, reactant1);
             dA5dkEntries(nA5Entries-nAdd+product1IsState+1,2) = parameter;
             dA5dkValues(nA5Entries-nAdd+product1IsState+1)    = 1;
+            S(product2, ir) = S(product2, ir) + 1; %%FF
         end
+        
+        
+        
+        
+        %%%% FFFFF %%%%%
+        % Increment entries
+        nAdd = 1;
+        nD5Entries = nD5Entries + nAdd;
+        
+        % Add more room in vector if necessary
+        currentLength = size(dD5dkEntries,1);
+        if nD5Entries > currentLength
+            addlength = max(currentLength, nAdd);
+            dD5dkEntries = [dD5dkEntries; zeros(addlength,2)];
+            dD5dkValues  = [dD5dkValues;  zeros(addlength,1)];
+        end
+        
+        % Add entries
+        dD5dkEntries(nD5Entries-nAdd+1,1) = sub2ind([nr,nu,nu], ir, reactant2, reactant1);
+        dD5dkEntries(nD5Entries-nAdd+1,2) = parameter;
+        dD5dkValues(nD5Entries-nAdd+1)    = 1;
+        %%%% FFFFF %%%%%
+        
+        
+        
+        
+        
     elseif reactant1Exists && ~reactant2Exists && ~reactant1IsState
         % A6 reaction
         nAdd = product1IsState + product2IsState;
@@ -819,6 +1005,7 @@ for ir =1:nr
             dA6dkEntries(nA6Entries-nAdd+1,1) = sub2ind([nx,nu], product1, reactant1);
             dA6dkEntries(nA6Entries-nAdd+1,2) = parameter;
             dA6dkValues(nA6Entries-nAdd+1)  = 1;
+            S(product1, ir) = S(product1, ir) + 1; %%FF
         end
         
         % Add product 2
@@ -826,7 +1013,35 @@ for ir =1:nr
             dA6dkEntries(nA6Entries-nAdd+product1IsState+1,1) = sub2ind([nx,nu], product2, reactant1);
             dA6dkEntries(nA6Entries-nAdd+product1IsState+1,2) = parameter;
             dA6dkValues(nA6Entries-nAdd+product1IsState+1)    = 1;
+            S(product2, ir) = S(product2, ir) + 1; %%FF
         end
+        
+        
+        
+        %%FFFFF%% D6 reaction
+        nAdd = 1 ;
+        nD6Entries = nD6Entries + nAdd;
+        
+        % Add more room in vector if necessary
+        currentLength = size(dD1dkEntries,1);
+        if nD1Entries > currentLength
+            addlength = max(currentLength, nAdd);
+            dD6dkEntries = [dD6dkEntries; zeros(addlength,2)];
+            dD6dkValues  = [dD6dkValues;  zeros(addlength,1)];
+        end
+        
+        % Add entries
+        % Substract reactant
+        dD6dkEntries(nD6Entries-nAdd+1,1) = sub2ind([nr,nu], ir, reactant1);
+        dD6dkEntries(nD6Entries-nAdd+1,2) = parameter;
+        dD6dkValues(nD6Entries-nAdd+1)    = 1;
+        %%FFFFFF%%
+        
+        
+        
+        
+        
+        
     elseif ~reactant1Exists && ~reactant2Exists
         % a reaction
         nAdd = product1IsState + product2IsState;
@@ -859,6 +1074,13 @@ for ir =1:nr
     end
 end
 
+
+
+% the stoichiometry matrix
+m.S=S;
+
+% initializing the Covariance Matrix
+m.V=0*randn(nx);
 % Construct derivative matrices
 m.dA1dk = sparse(dA1dkEntries(1:nA1Entries,1), dA1dkEntries(1:nA1Entries,2), dA1dkValues(1:nA1Entries), nx*nx,    nk);
 m.dA2dk = sparse(dA2dkEntries(1:nA2Entries,1), dA2dkEntries(1:nA2Entries,2), dA2dkValues(1:nA2Entries), nx*nx*nx, nk);
@@ -868,6 +1090,13 @@ m.dA5dk = sparse(dA5dkEntries(1:nA5Entries,1), dA5dkEntries(1:nA5Entries,2), dA5
 m.dA6dk = sparse(dA6dkEntries(1:nA6Entries,1), dA6dkEntries(1:nA6Entries,2), dA6dkValues(1:nA6Entries), nx*nu,    nk);
 m.dadk  = sparse(dadkEntries(1:naEntries,1),   dadkEntries(1:naEntries,2),   dadkValues(1:naEntries),   nx,       nk);
 
+m.dD1dk = sparse(dD1dkEntries(1:nD1Entries,1), dD1dkEntries(1:nD1Entries,2), dD1dkValues(1:nD1Entries), nr*nx,    nk);
+m.dD2dk = sparse(dD2dkEntries(1:nD2Entries,1), dD2dkEntries(1:nD2Entries,2), dD2dkValues(1:nD2Entries), nr*nx*nx, nk);
+m.dD3dk = sparse(dD3dkEntries(1:nD3Entries,1), dD3dkEntries(1:nD3Entries,2), dD3dkValues(1:nD3Entries), nr*nu*nx, nk);
+m.dD4dk = sparse(dD4dkEntries(1:nD4Entries,1), dD4dkEntries(1:nD4Entries,2), dD4dkValues(1:nD4Entries), nr*nx*nu, nk);
+m.dD5dk = sparse(dD5dkEntries(1:nD5Entries,1), dD5dkEntries(1:nD5Entries,2), dD5dkValues(1:nD5Entries), nr*nu*nu, nk);
+m.dD6dk = sparse(dD6dkEntries(1:nD6Entries,1), dD6dkEntries(1:nD6Entries,2), dD6dkValues(1:nD6Entries), nr*nu,    nk);
+
 % Alternative shape
 m.dA1dk_fk_x  = spermute132(m.dA1dk, [nx,nx,nk],    [nx*nk,nx]);
 m.dA2dk_fk_xx = spermute132(m.dA2dk, [nx,nx*nx,nk], [nx*nk,nx*nx]);
@@ -875,6 +1104,13 @@ m.dA3dk_fk_ux = spermute132(m.dA3dk, [nx,nu*nx,nk], [nx*nk,nu*nx]);
 m.dA4dk_fk_xu = spermute132(m.dA4dk, [nx,nx*nu,nk], [nx*nk,nx*nu]);
 m.dA5dk_fk_uu = spermute132(m.dA5dk, [nx,nu*nu,nk], [nx*nk,nu*nu]);
 m.dA6dk_fk_u  = spermute132(m.dA6dk, [nx,nu,nk],    [nx*nk,nu]);
+
+m.dD1dk_fk_x  = spermute132(m.dD1dk, [nr,nx,nk],    [nr*nk,nx]);
+m.dD2dk_fk_xx = spermute132(m.dD2dk, [nr,nx*nx,nk], [nr*nk,nx*nx]);
+m.dD3dk_fk_ux = spermute132(m.dD3dk, [nr,nu*nx,nk], [nr*nk,nu*nx]);
+m.dD4dk_fk_xu = spermute132(m.dD4dk, [nr,nx*nu,nk], [nr*nk,nx*nu]);
+m.dD5dk_fk_uu = spermute132(m.dD5dk, [nr,nu*nu,nk], [nr*nk,nu*nu]);
+m.dD6dk_fk_u  = spermute132(m.dD6dk, [nr,nu,nk],    [nr*nk,nu]);
 
 % Construct fullest possible matrices
 m.A1 = reshape(m.dA1dk * rand(nk,1), nx,nx);
@@ -884,6 +1120,14 @@ m.A4 = reshape(m.dA4dk * rand(nk,1), nx,nx*nu);
 m.A5 = reshape(m.dA5dk * rand(nk,1), nx,nu*nu);
 m.A6 = reshape(m.dA6dk * rand(nk,1), nx,nu);
 m.a  = m.dadk  * rand(nk,1);
+
+m.D1 = reshape(m.dD1dk * rand(nk,1), nr,nx);
+m.D2 = reshape(m.dD2dk * rand(nk,1), nr,nx*nx);
+m.D3 = reshape(m.dD3dk * rand(nk,1), nr,nu*nx);
+m.D4 = reshape(m.dD4dk * rand(nk,1), nr,nx*nu);
+m.D5 = reshape(m.dD5dk * rand(nk,1), nr,nu*nu);
+m.D6 = reshape(m.dD6dk * rand(nk,1), nr,nu);
+
 
 % Determine used columns of bimolecular matrices
 [unused A2UsedColumns] = find(m.A2);
@@ -924,9 +1168,12 @@ function m = final(m, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColum
 nx = m.nx;
 nu = m.nu;
 nk = m.nk;
+nr = m.nr;
 isu = cat(1, m.Species.IsInput, false(0,1));
 
 % Build kronecker matrices
+
+
 sparsek = sparse(m.k);
 m.A1 = reshape(m.dA1dk * sparsek, nx,nx);
 m.A2 = reshape(m.dA2dk * sparsek, nx,nx*nx);
@@ -935,6 +1182,13 @@ m.A4 = reshape(m.dA4dk * sparsek, nx,nx*nu);
 m.A5 = reshape(m.dA5dk * sparsek, nx,nu*nu);
 m.A6 = reshape(m.dA6dk * sparsek, nx,nu);
 m.a  = m.dadk * m.k;
+
+m.D1 = reshape(m.dD1dk * sparsek, nr,nx);
+m.D2 = reshape(m.dD2dk * sparsek, nr,nx*nx);
+m.D3 = reshape(m.dD3dk * sparsek, nr,nu*nx);
+m.D4 = reshape(m.dD4dk * sparsek, nr,nx*nu);
+m.D5 = reshape(m.dD5dk * sparsek, nr,nu*nu);
+m.D6 = reshape(m.dD6dk * sparsek, nr,nu);
 
 % Handles
 m.drdx = @drdx;
@@ -999,6 +1253,7 @@ handle = @f;
     function val = f(t, x, u)
 %   f = A1*x + A2*(x kron x/vx) + A3*(u kron x/vx) + A4*(x kron u/vu) + A5*(u kron u/vu) + A6*u + a
         % Compartment column
+        
         v = B1 * x + B2 * u + b;
         xvx = x ./ v(vxInd);
         uvu = u ./ v(vuInd);
