@@ -31,7 +31,7 @@ end
 
 
 % Append the initial conditions of Covariance Matrix
-ic = cat(1,ic,m.V(:));
+ic = cat(1,ic,opts.V0(:));
 
 
 % Input
