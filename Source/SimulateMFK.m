@@ -19,6 +19,8 @@ function [varargout] = SimulateMFK(m, con, opts)
 %           AbsTol      - Cell vector of vectors, numerical scalar, or 
 %                         numerical vector for the absolute tolerance of
 %                         the integration. Default = 1e-9 
+%           V0          - Initial Conditions of the Covariance matrix.
+%                         Default = zeros(nx) 
 %           Verbose     - Numerical scalar for how much progress 
 %                         information should be displayed. Default = 0
 %
@@ -111,21 +113,22 @@ end
 
 assert(isscalar(m), 'KroneckerBio:Simulate:MoreThanOneModel', 'The model structure must be scalar')
 
+% Constants
+nx = m.nx;
+nCon = numel(con);
+
 % Options
 defaultOpts.RelTol         = NaN;
 defaultOpts.AbsTol         = NaN;
 defaultOpts.UseModelICs    = false;
 defaultOpts.UseModelInputs = false;
 defaultOpts.Verbose        = 0;
-
+defaultOpts.V0             = zeros(nx);
 opts = mergestruct(defaultOpts, opts);
 
 verbose = logical(opts.Verbose);
 opts.Verbose = max(opts.Verbose-1,0);
 
-% Constants
-nx = m.nx;
-nCon = numel(con);
 
 % RelTol
 if isempty(opts.RelTol) || isnan(opts.RelTol)
