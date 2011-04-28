@@ -552,36 +552,17 @@ m.c  = sparse(cEntries(:,1),  cEntries(:,2),  cValues,  m.ny, 1);
 m.k = cat(1, m.Parameters.Value, zeros(0,1));
 
 %% Process Reactions
-nA1Entries = 0;
-nA2Entries = 0;
-nA3Entries = 0;
-nA4Entries = 0;
-nA5Entries = 0;
-nA6Entries = 0;
-naEntries = 0;
-
+nSEntries  = 0;
 nD1Entries = 0;
 nD2Entries = 0;
 nD3Entries = 0;
 nD4Entries = 0;
 nD5Entries = 0;
 nD6Entries = 0;
+ndEntries  = 0;
 
-dA1dkEntries = zeros(0,2);
-dA1dkValues  = zeros(0,1);
-dA2dkEntries = zeros(0,2);
-dA2dkValues  = zeros(0,1);
-dA3dkEntries = zeros(0,2);
-dA3dkValues  = zeros(0,1);
-dA4dkEntries = zeros(0,2);
-dA4dkValues  = zeros(0,1);
-dA5dkEntries = zeros(0,2);
-dA5dkValues  = zeros(0,1);
-dA6dkEntries = zeros(0,2);
-dA6dkValues  = zeros(0,1);
-dadkEntries = zeros(0,2);
-dadkValues  = zeros(0,1);
-
+SEntries  = zeros(0,2);
+SValues   = zeros(0,1);
 dD1dkEntries = zeros(0,2);
 dD1dkValues  = zeros(0,1);
 dD2dkEntries = zeros(0,2);
@@ -594,9 +575,8 @@ dD5dkEntries = zeros(0,2);
 dD5dkValues  = zeros(0,1);
 dD6dkEntries = zeros(0,2);
 dD6dkValues  = zeros(0,1);
-
-S= sparse(nx,nr);
-
+dddkEntries  = zeros(0,2);
+dddkValues   = zeros(0,1);
 
 for ir =1:nr
     % Determine reaction type and species indexes
@@ -633,156 +613,112 @@ for ir =1:nr
     parameter = find(strcmp(m.Reactions(ir).Parameter, {m.Parameters.Name}));
     assert(~isempty(parameter), 'KroneckerBio:FinalizeModel:MissingReactionParameter', 'Reaction %s (#%i) requires parameter %s, but no parameter by that name was found', m.Reactions(ir).Name, ir, m.Reactions(ir).Parameter)
     
-    
-    
-    
-    
-    
-    
-    
     % Switch on reactant state
     if reactant1Exists && ~reactant2Exists && reactant1IsState
-        % A1 reaction
+        % D1/A1 reaction
+        % Add S entries
         nAdd = 1 + product1IsState + product2IsState;
-        nA1Entries = nA1Entries + nAdd;
+        nSEntries = nSEntries + nAdd;
         
         % Add more room in vector if necessary
-        currentLength = size(dA1dkEntries,1);
-        if nA1Entries > currentLength
+        currentLength = size(nSEntries,1);
+        if nSEntries > currentLength
             addlength = max(currentLength, nAdd);
-            dA1dkEntries = [dA1dkEntries; zeros(addlength,2)];
-            dA1dkValues  = [dA1dkValues;  zeros(addlength,1)];
+            SEntries = [SEntries; zeros(addlength,2)];
+            SValues  = [SValues;  zeros(addlength,1)];
         end
         
-        % Add entries
-        % Substract reactant
-        dA1dkEntries(nA1Entries-nAdd+1,1) = sub2ind([nx,nx], reactant1, reactant1);
-        dA1dkEntries(nA1Entries-nAdd+1,2) = parameter;
-        dA1dkValues(nA1Entries-nAdd+1)    = -1;
-        S(reactant1, ir) = S(reactant1, ir) -1; %% FF
+        % Subtract reactant
+        SEntries(nSEntries-nAdd+1,1) = reactant1;
+        SEntries(nSEntries-nAdd+1,2) = ir;
+        SValues(nSEntries-nAdd+1)    = -1;
         
         % Add product 1
         if product1IsState
-            dA1dkEntries(nA1Entries-nAdd+2,1) = sub2ind([nx,nx], product1, reactant1);
-            dA1dkEntries(nA1Entries-nAdd+2,2) = parameter;
-            dA1dkValues(nA1Entries-nAdd+2)    = 1;
-            S(product1, ir)  = S(product1, ir) + 1; %%% FF
+            SEntries(nSEntries-nAdd+2,1) = product1;
+            SEntries(nSEntries-nAdd+2,2) = ir;
+            SValues(nSEntries-nAdd+2)    = 1;
         end
         
         % Add product 2
         if product2IsState
-            dA1dkEntries(nA1Entries-nAdd+product1IsState+2,1) = sub2ind([nx,nx], product2, reactant1);
-            dA1dkEntries(nA1Entries-nAdd+product1IsState+2,2) = parameter;
-            dA1dkValues(nA1Entries-nAdd+product1IsState+2)    = 1;
-            S(product2, ir)  = S(product2, ir) + 1; %%% FF
+            SEntries(nSEntries-nAdd+product1IsState+2,1) = product2;
+            SEntries(nSEntries-nAdd+product1IsState+2,2) = ir;
+            SValues(nSEntries-nAdd+product1IsState+2)    = 1;
         end
         
-        
-        
-        
-        %%FFFFF%% D1 reaction
-        nAdd = 1 ;
-        nD1Entries = nD1Entries + nAdd;
+        % Add D1 entry
+        nD1Entries = nD1Entries + 1;
         
         % Add more room in vector if necessary
         currentLength = size(dD1dkEntries,1);
         if nD1Entries > currentLength
-            addlength = max(currentLength, nAdd);
+            addlength = max(currentLength, 1);
             dD1dkEntries = [dD1dkEntries; zeros(addlength,2)];
             dD1dkValues  = [dD1dkValues;  zeros(addlength,1)];
         end
         
-        % Add entries
-        % Substract reactant
-        dD1dkEntries(nD1Entries-nAdd+1,1) = sub2ind([nr,nx], ir, reactant1);
-        dD1dkEntries(nD1Entries-nAdd+1,2) = parameter;
-        dD1dkValues(nD1Entries-nAdd+1)    = 1;
-        %%FFFFFF%%
-        
-        
-        
+        dD1dkEntries(nD1Entries,1) = sub2ind([nr,nx], ir, reactant1);
+        dD1dkEntries(nD1Entries,2) = parameter;
+        dD1dkValues(nD1Entries)    = 1;
 
-        
-        
-        
-        
     elseif reactant1Exists && reactant2Exists && reactant1IsState && reactant2IsState
-        % A2 reaction
+        % D2/A2 reaction
         % Order reactants so that freest species is second
         if m.d(m.vxInd(reactant1)) > m.d(m.vxInd(reactant2)) || (m.d(m.vxInd(reactant1)) == m.d(m.vxInd(reactant2)) && reactant1 > reactant2)
             [reactant1 reactant2] = deal(reactant2, reactant1); % Swap
         end
         
-        % Increment entries
+        % Add S entries
         nAdd = 2 + product1IsState + product2IsState;
-        nA2Entries = nA2Entries + nAdd;
+        nSEntries = nSEntries + nAdd;
         
         % Add more room in vector if necessary
-        currentLength = size(dA2dkEntries,1);
-        if nA2Entries > currentLength
+        currentLength = size(nSEntries,1);
+        if nSEntries > currentLength
             addlength = max(currentLength, nAdd);
-            dA2dkEntries = [dA2dkEntries; zeros(addlength,2)];
-            dA2dkValues  = [dA2dkValues;  zeros(addlength,1)];
+            SEntries = [SEntries; zeros(addlength,2)];
+            SValues  = [SValues;  zeros(addlength,1)];
         end
         
-        % Add entries
-        % Substract reactant 1
-        dA2dkEntries(nA2Entries-nAdd+1,1) = sub2ind([nx,nx,nx], reactant1, reactant2, reactant1);
-        dA2dkEntries(nA2Entries-nAdd+1,2) = parameter;
-        dA2dkValues(nA2Entries-nAdd+1)    = -1;
-        S(reactant1, ir) = S(reactant1, ir) -1; %% FF
-      
+        % Subtract reactant 1
+        SEntries(nSEntries-nAdd+1,1) = reactant1;
+        SEntries(nSEntries-nAdd+1,2) = ir;
+        SValues(nSEntries-nAdd+1)    = -1;
         
-        % Substract reactant 2
-        dA2dkEntries(nA2Entries-nAdd+2,1) = sub2ind([nx,nx,nx], reactant2, reactant2, reactant1);
-        dA2dkEntries(nA2Entries-nAdd+2,2) = parameter;
-        dA2dkValues(nA2Entries-nAdd+2)    = -1;
-        S(reactant2, ir) = S(reactant2, ir) -1; %% FF
+        % Subtract reactant 2
+        SEntries(nSEntries-nAdd+2,1) = reactant2;
+        SEntries(nSEntries-nAdd+2,2) = ir;
+        SValues(nSEntries-nAdd+2)    = -1;
 
         % Add product 1
         if product1IsState
-            dA2dkEntries(nA2Entries-nAdd+3,1) = sub2ind([nx,nx,nx], product1, reactant2, reactant1);
-            dA2dkEntries(nA2Entries-nAdd+3,2) = parameter;
-            dA2dkValues(nA2Entries-nAdd+3)    = 1;
-            S(product1, ir)  = S(product1, ir) + 1; %% FF
-   
+            SEntries(nSEntries-nAdd+3,1) = product1;
+            SEntries(nSEntries-nAdd+3,2) = ir;
+            SValues(nSEntries-nAdd+3)    = 1;
         end
         
         % Add product 2
         if product2IsState
-            dA2dkEntries(nA2Entries-nAdd+product1IsState+3,1) = sub2ind([nx,nx,nx], product2, reactant2, reactant1);
-            dA2dkEntries(nA2Entries-nAdd+product1IsState+3,2) = parameter;
-            dA2dkValues(nA2Entries-nAdd+product1IsState+3)    = 1;
-            S(product2, ir)  = S(product2, ir) + 1; %% FF
-     
+            SEntries(nSEntries-nAdd+product1IsState+3,1) = product2;
+            SEntries(nSEntries-nAdd+product1IsState+3,2) = ir;
+            SValues(nSEntries-nAdd+product1IsState+3)    = 1;
         end
         
-        
-        
-        %%%% FFFFF %%%%%
-        % Increment entries
-        nAdd = 1;
-        nD2Entries = nD2Entries + nAdd;
+        % Add D2 entry
+        nD2Entries = nD2Entries + 1;
         
         % Add more room in vector if necessary
         currentLength = size(dD2dkEntries,1);
         if nD2Entries > currentLength
-            addlength = max(currentLength, nAdd);
+            addlength = max(currentLength, 1);
             dD2dkEntries = [dD2dkEntries; zeros(addlength,2)];
             dD2dkValues  = [dD2dkValues;  zeros(addlength,1)];
         end
         
-        % Add entries
-        dD2dkEntries(nD2Entries-nAdd+1,1) = sub2ind([nr,nx,nx], ir, reactant2, reactant1);
-        dD2dkEntries(nD2Entries-nAdd+1,2) = parameter;
-        dD2dkValues(nD2Entries-nAdd+1)    = 1;
-        %%%% FFFFF %%%%%
-        
-        
-        
-        
-        
-        
+        dD2dkEntries(nD2Entries,1) = sub2ind([nr,nx,nx], ir, reactant2, reactant1);
+        dD2dkEntries(nD2Entries,2) = parameter;
+        dD2dkValues(nD2Entries)    = 1;
         
     elseif reactant1Exists && reactant2Exists && xor(reactant2IsState, reactant1IsState)
         % Order reactants so that freest species is second
@@ -799,305 +735,266 @@ for ir =1:nr
         end
         
         if reactant2IsState
-            % A3 reaction
-            % Increment entries
+            % D3/A3 reaction
+            % Add S entries
             nAdd = 1 + product1IsState + product2IsState;
-            nA3Entries = nA3Entries + nAdd;
+            nSEntries = nSEntries + nAdd;
             
             % Add more room in vector if necessary
-            currentLength = size(dA3dkEntries,1);
-            if nA3Entries > currentLength
+            currentLength = size(nSEntries,1);
+            if nSEntries > currentLength
                 addlength = max(currentLength, nAdd);
-                dA3dkEntries = [dA3dkEntries; zeros(addlength,2)];
-                dA3dkValues  = [dA3dkValues;  zeros(addlength,1)];
+                SEntries = [SEntries; zeros(addlength,2)];
+                SValues  = [SValues;  zeros(addlength,1)];
             end
             
-            % Add entries
-            % Substract reactant 2
-            dA3dkEntries(nA3Entries-nAdd+1,1) = sub2ind([nx,nx,nu], reactant2, reactant2, reactant1);
-            dA3dkEntries(nA3Entries-nAdd+1,2) = parameter;
-            dA3dkValues(nA3Entries-nAdd+1)    = -1;
-            S(reactant2, ir) = S(reactant2, ir) -1; %%FF
+            % Subtract reactant 2
+            SEntries(nSEntries-nAdd+1,1) = reactant2;
+            SEntries(nSEntries-nAdd+1,2) = ir;
+            SValues(nSEntries-nAdd+1)    = -1;
             
             % Add product 1
             if product1IsState
-                dA3dkEntries(nA3Entries-nAdd+2,1) = sub2ind([nx,nx,nu], product1, reactant2, reactant1);
-                dA3dkEntries(nA3Entries-nAdd+2,2) = parameter;
-                dA3dkValues(nA3Entries-nAdd+2)    = 1;
-                S(product1, ir) = S(product1, ir) + 1; %%FF
+                SEntries(nSEntries-nAdd+2,1) = product1;
+                SEntries(nSEntries-nAdd+2,2) = ir;
+                SValues(nSEntries-nAdd+2)    = 1;
             end
             
             % Add product 2
             if product2IsState
-                dA3dkEntries(nA3Entries-nAdd+product1IsState+2,1) = sub2ind([nx,nx,nu], product2, reactant2, reactant1);
-                dA3dkEntries(nA3Entries-nAdd+product1IsState+2,2) = parameter;
-                dA3dkValues(nA3Entries-nAdd+product1IsState+2)    = 1;
-                S(product2, ir) = S(product2, ir) + 1; %%FF
+                SEntries(nSEntries-nAdd+product1IsState+2,1) = product2;
+                SEntries(nSEntries-nAdd+product1IsState+2,2) = ir;
+                SValues(nSEntries-nAdd+product1IsState+2)    = 1;
             end
             
+            % Add D3 entry
+            nD3Entries = nD3Entries + 1;
             
-                
-            
-            %%%% FFFFF %%%%%
-            % Increment entries
-            nAdd = 1;
-            nD3Entries = nD3Entries + nAdd;
-        
             % Add more room in vector if necessary
             currentLength = size(dD3dkEntries,1);
             if nD3Entries > currentLength
-                addlength = max(currentLength, nAdd);
+                addlength = max(currentLength, 1);
                 dD3dkEntries = [dD3dkEntries; zeros(addlength,2)];
                 dD3dkValues  = [dD3dkValues;  zeros(addlength,1)];
             end
-        
-            % Add entries
-            dD3dkEntries(nD3Entries-nAdd+1,1) = sub2ind([nr,nx,nu], ir, reactant2, reactant1);
-            dD3dkEntries(nD3Entries-nAdd+1,2) = parameter;
-            dD3dkValues(nD3Entries-nAdd+1)    = 1;
-            %%%% FFFFF %%%%%
             
-            
-            
-            
-            
+            dD3dkEntries(nD3Entries,1) = sub2ind([nr,nx,nu], ir, reactant2, reactant1);
+            dD3dkEntries(nD3Entries,2) = parameter;
+            dD3dkValues(nD3Entries)    = 1;
             
         else%reactant1IsState
-            % A4 reaction
-            % Increment entries
+            % D4/A4 reaction
+            % Add S entries
             nAdd = 1 + product1IsState + product2IsState;
-            nA4Entries = nA4Entries + nAdd;
+            nSEntries = nSEntries + nAdd;
             
             % Add more room in vector if necessary
-            currentLength = size(dA4dkEntries,1);
-            if nA4Entries > currentLength
+            currentLength = size(nSEntries,1);
+            if nSEntries > currentLength
                 addlength = max(currentLength, nAdd);
-                dA4dkEntries = [dA4dkEntries; zeros(addlength,2)];
-                dA4dkValues  = [dA4dkValues;  zeros(addlength,1)];
+                SEntries = [SEntries; zeros(addlength,2)];
+                SValues  = [SValues;  zeros(addlength,1)];
             end
             
-            % Add entries
-            % Substract reactant 1
-            dA4dkEntries(nA4Entries-nAdd+1,1) = sub2ind([nx,nu,nx], reactant1, reactant2, reactant1);
-            dA4dkEntries(nA4Entries-nAdd+1,2) = parameter;
-            dA4dkValues(nA4Entries-nAdd+1)    = -1;
-            S(reactant1, ir) = S(reactant1, ir) -1; %%FF
+            % Subtract reactant 1
+            SEntries(nSEntries-nAdd+1,1) = reactant1;
+            SEntries(nSEntries-nAdd+1,2) = ir;
+            SValues(nSEntries-nAdd+1)    = -1;
             
             % Add product 1
             if product1IsState
-                dA4dkEntries(nA4Entries-nAdd+2,1) = sub2ind([nx,nu,nx], product1, reactant2, reactant1);
-                dA4dkEntries(nA4Entries-nAdd+2,2) = parameter;
-                dA4dkValues(nA4Entries-nAdd+2)    = 1;
-                S(product1, ir) = S(product1, ir) + 1; %%FF
+                SEntries(nSEntries-nAdd+2,1) = product1;
+                SEntries(nSEntries-nAdd+2,2) = ir;
+                SValues(nSEntries-nAdd+2)    = 1;
             end
             
             % Add product 2
             if product2IsState
-                dA4dkEntries(nA4Entries-nAdd+product1IsState+2,1) = sub2ind([nx,nu,nx], product2, reactant2, reactant1);
-                dA4dkEntries(nA4Entries-nAdd+product1IsState+2,2) = parameter;
-                dA4dkValues(nA4Entries-nAdd+product1IsState+2)    = 1;
-                S(product2, ir) = S(product2, ir) + 1; %%FF
+                SEntries(nSEntries-nAdd+product1IsState+2,1) = product2;
+                SEntries(nSEntries-nAdd+product1IsState+2,2) = ir;
+                SValues(nSEntries-nAdd+product1IsState+2)    = 1;
             end
-        end
         
-        
-            %%%% FFFFF %%%%%
-            % Increment entries
-            nAdd = 1;
-            nD4Entries = nD4Entries + nAdd;
+            % Add D4 entry
+            nD4Entries = nD4Entries + 1;
         
             % Add more room in vector if necessary
             currentLength = size(dD4dkEntries,1);
             if nD4Entries > currentLength
-                addlength = max(currentLength, nAdd);
+                addlength = max(currentLength, 1);
                 dD4dkEntries = [dD4dkEntries; zeros(addlength,2)];
                 dD4dkValues  = [dD4dkValues;  zeros(addlength,1)];
             end
         
-            % Add entries
-            dD4dkEntries(nD4Entries-nAdd+1,1) = sub2ind([nr,nu,nx], ir, reactant2, reactant1);
-            dD4dkEntries(nD4Entries-nAdd+1,2) = parameter;
-            dD4dkValues(nD4Entries-nAdd+1)    = 1;
-            %%%% FFFFF %%%%%
+            dD4dkEntries(nD4Entries,1) = sub2ind([nr,nu,nx], ir, reactant2, reactant1);
+            dD4dkEntries(nD4Entries,2) = parameter;
+            dD4dkValues(nD4Entries)    = 1;
         
-        
-        
-        
+        end
         
     elseif reactant1Exists && reactant2Exists && ~reactant1IsState && ~reactant2IsState
-        % A5 reaction
+        % D5/A5 reaction
         % Order reactants so that freest species is second
         if m.d(m.vuInd(reactant1)) > m.d(m.vuInd(reactant2)) || (m.d(m.vuInd(reactant1)) == m.d(m.vuInd(reactant2)) && reactant1 > reactant2)
             [reactant1 reactant2] = deal(reactant2, reactant1); % Swap
         end
         
-        % Increment entries
+        % Add S entries
         nAdd = product1IsState + product2IsState;
-        nA5Entries = nA5Entries + nAdd;
+        nSEntries = nSEntries + nAdd;
         
         % Add more room in vector if necessary
-        currentLength = size(dA5dkEntries,1);
-        if nA5Entries > currentLength
+        currentLength = size(nSEntries,1);
+        if nSEntries > currentLength
             addlength = max(currentLength, nAdd);
-            dA5dkEntries = [dA5dkEntries; zeros(addlength,2)];
-            dA5dkValues  = [dA5dkValues;  zeros(addlength,1)];
+            SEntries = [SEntries; zeros(addlength,2)];
+            SValues  = [SValues;  zeros(addlength,1)];
         end
         
-        % Add entries
         % Add product 1
         if product1IsState
-            dA5dkEntries(nA5Entries-nAdd+1,1) = sub2ind([nx,nu,nu], product1, reactant2, reactant1);
-            dA5dkEntries(nA5Entries-nAdd+1,2) = parameter;
-            dA5dkValues(nA5Entries-nAdd+1)    = 1;
-            S(product1, ir) = S(product1, ir) + 1; %%FF
+            SEntries(nSEntries-nAdd+1,1) = product1;
+            SEntries(nSEntries-nAdd+1,2) = ir;
+            SValues(nSEntries-nAdd+1)    = 1;
         end
         
         % Add product 2
         if product2IsState
-            dA5dkEntries(nA5Entries-nAdd+product1IsState+1,1) = sub2ind([nx,nu,nu], product2, reactant2, reactant1);
-            dA5dkEntries(nA5Entries-nAdd+product1IsState+1,2) = parameter;
-            dA5dkValues(nA5Entries-nAdd+product1IsState+1)    = 1;
-            S(product2, ir) = S(product2, ir) + 1; %%FF
+            SEntries(nSEntries-nAdd+product1IsState+1,1) = product2;
+            SEntries(nSEntries-nAdd+product1IsState+1,2) = ir;
+            SValues(nSEntries-nAdd+product1IsState+1)    = 1;
         end
         
-        
-        
-        
-        %%%% FFFFF %%%%%
-        % Increment entries
-        nAdd = 1;
-        nD5Entries = nD5Entries + nAdd;
+        % Add D5 entry
+        nD5Entries = nD5Entries + 1;
         
         % Add more room in vector if necessary
-        currentLength = size(dD5dkEntries,1);
-        if nD5Entries > currentLength
-            addlength = max(currentLength, nAdd);
-            dD5dkEntries = [dD5dkEntries; zeros(addlength,2)];
-            dD5dkValues  = [dD5dkValues;  zeros(addlength,1)];
+        currentLength = size(nSEntries,1);
+        if nSEntries > currentLength
+            addlength = max(currentLength, 1);
+            SEntries = [SEntries; zeros(addlength,2)];
+            SValues  = [SValues;  zeros(addlength,1)];
         end
         
-        % Add entries
-        dD5dkEntries(nD5Entries-nAdd+1,1) = sub2ind([nr,nu,nu], ir, reactant2, reactant1);
-        dD5dkEntries(nD5Entries-nAdd+1,2) = parameter;
-        dD5dkValues(nD5Entries-nAdd+1)    = 1;
-        %%%% FFFFF %%%%%
-        
-        
-        
-        
+        dD5dkEntries(nD5Entries,1) = sub2ind([nr,nu,nu], ir, reactant2, reactant1);
+        dD5dkEntries(nD5Entries,2) = parameter;
+        dD5dkValues(nD5Entries)    = 1;
         
     elseif reactant1Exists && ~reactant2Exists && ~reactant1IsState
-        % A6 reaction
+        % D6/A6 reaction
+        % Add S entries
         nAdd = product1IsState + product2IsState;
-        nA6Entries = nA6Entries + nAdd;
+        nSEntries = nSEntries + nAdd;
         
         % Add more room in vector if necessary
-        currentLength = size(dA6dkEntries,1);
-        if nA6Entries > currentLength
+        currentLength = size(nSEntries,1);
+        if nSEntries > currentLength
             addlength = max(currentLength, nAdd);
-            dA6dkEntries = [dA6dkEntries; zeros(addlength,2)];
-            dA6dkValues  = [dA6dkValues;  zeros(addlength,1)];
+            SEntries = [SEntries; zeros(addlength,2)];
+            SValues  = [SValues;  zeros(addlength,1)];
         end
         
-        % Add entries
         % Add product 1
         if product1IsState
-            dA6dkEntries(nA6Entries-nAdd+1,1) = sub2ind([nx,nu], product1, reactant1);
-            dA6dkEntries(nA6Entries-nAdd+1,2) = parameter;
-            dA6dkValues(nA6Entries-nAdd+1)  = 1;
-            S(product1, ir) = S(product1, ir) + 1; %%FF
+            SEntries(nSEntries-nAdd+1,1) = product1;
+            SEntries(nSEntries-nAdd+1,2) = ir;
+            SValues(nSEntries-nAdd+1)    = 1;
         end
         
         % Add product 2
         if product2IsState
-            dA6dkEntries(nA6Entries-nAdd+product1IsState+1,1) = sub2ind([nx,nu], product2, reactant1);
-            dA6dkEntries(nA6Entries-nAdd+product1IsState+1,2) = parameter;
-            dA6dkValues(nA6Entries-nAdd+product1IsState+1)    = 1;
-            S(product2, ir) = S(product2, ir) + 1; %%FF
+            SEntries(nSEntries-nAdd+product1IsState+1,1) = product2;
+            SEntries(nSEntries-nAdd+product1IsState+1,2) = ir;
+            SValues(nSEntries-nAdd+product1IsState+1)    = 1;
         end
         
-        
-        
-        %%FFFFF%% D6 reaction
-        nAdd = 1 ;
-        nD6Entries = nD6Entries + nAdd;
+        % Add D6 entry
+        nD6Entries = nD6Entries + 1;
         
         % Add more room in vector if necessary
         currentLength = size(dD1dkEntries,1);
         if nD1Entries > currentLength
-            addlength = max(currentLength, nAdd);
+            addlength = max(currentLength, 1);
             dD6dkEntries = [dD6dkEntries; zeros(addlength,2)];
             dD6dkValues  = [dD6dkValues;  zeros(addlength,1)];
         end
         
-        % Add entries
-        % Substract reactant
-        dD6dkEntries(nD6Entries-nAdd+1,1) = sub2ind([nr,nu], ir, reactant1);
-        dD6dkEntries(nD6Entries-nAdd+1,2) = parameter;
-        dD6dkValues(nD6Entries-nAdd+1)    = 1;
-        %%FFFFFF%%
-        
-        
-        
-        
-        
+        dD6dkEntries(nD6Entries,1) = sub2ind([nr,nu], ir, reactant1);
+        dD6dkEntries(nD6Entries,2) = parameter;
+        dD6dkValues(nD6Entries)    = 1;
         
     elseif ~reactant1Exists && ~reactant2Exists
-        % a reaction
+        % d/a reaction
+        % Add S entries
         nAdd = product1IsState + product2IsState;
-        naEntries = naEntries + nAdd;
+        nSEntries = nSEntries + nAdd;
         
         % Add more room in vector if necessary
-        currentLength = size(dadkEntries,1);
-        if naEntries > currentLength
+        currentLength = size(nSEntries,1);
+        if nSEntries > currentLength
             addlength = max(currentLength, nAdd);
-            dadkEntries = [dadkEntries; zeros(addlength,2)];
-            dadkValues  = [dadkValues;  zeros(addlength,1)];
+            SEntries = [SEntries; zeros(addlength,2)];
+            SValues  = [SValues;  zeros(addlength,1)];
         end
         
-        % Add entries
         % Add product 1
         if product1IsState
-            dadkEntries(naEntries-nAdd+1,1) = product1;
-            dadkEntries(naEntries-nAdd+1,2) = parameter;
-            dadkValues(naEntries-nAdd+1)  = 1;
+            SEntries(nSEntries-nAdd+1,1) = product1;
+            SEntries(nSEntries-nAdd+1,2) = ir;
+            SValues(nSEntries-nAdd+1)    = 1;
         end
         
         % Add product 2
         if product2IsState
-            dadkEntries(naEntries-nAdd+product1IsState+1,1) = product2;
-            dadkEntries(naEntries-nAdd+product1IsState+1,2) = parameter;
-            dadkValues(naEntries-nAdd+product1IsState+1)    = 1;
+            SEntries(nSEntries-nAdd+product1IsState+1,1) = product2;
+            SEntries(nSEntries-nAdd+product1IsState+1,2) = ir;
+            SValues(nSEntries-nAdd+product1IsState+1)    = 1;
         end
+        
+        % Add d entry
+        ndEntries = ndEntries + 1;
+        
+        % Add more room in vector if necessary
+        currentLength = size(dddkEntries,1);
+        if ndEntries > currentLength
+            addlength = max(currentLength, 1);
+            dddkEntries = [dddkEntries; zeros(addlength,2)];
+            dddkValues  = [dddkValues;  zeros(addlength,1)];
+        end
+        
+        dddkEntries(ndEntries,1) = ir;
+        dddkEntries(ndEntries,2) = parameter;
+        dddkValues(ndEntries)    = 1;
+        
     else
         error('Unknown error occured while processing reactions')
     end
 end
 
 
+%% Construct matrices of model
+% Construct stoichiometry matrix
+m.S  = sparse(SEntries(1:nSEntries,1), SEntries(1:nSEntries,2), SValues(1:nSEntries), nx, nr);
 
-% the stoichiometry matrix
-m.S=S;
-
-% initializing the Covariance Matrix
-m.V=0*randn(nx);
-% Construct derivative matrices
-m.dA1dk = sparse(dA1dkEntries(1:nA1Entries,1), dA1dkEntries(1:nA1Entries,2), dA1dkValues(1:nA1Entries), nx*nx,    nk);
-m.dA2dk = sparse(dA2dkEntries(1:nA2Entries,1), dA2dkEntries(1:nA2Entries,2), dA2dkValues(1:nA2Entries), nx*nx*nx, nk);
-m.dA3dk = sparse(dA3dkEntries(1:nA3Entries,1), dA3dkEntries(1:nA3Entries,2), dA3dkValues(1:nA3Entries), nx*nu*nx, nk);
-m.dA4dk = sparse(dA4dkEntries(1:nA4Entries,1), dA4dkEntries(1:nA4Entries,2), dA4dkValues(1:nA4Entries), nx*nx*nu, nk);
-m.dA5dk = sparse(dA5dkEntries(1:nA5Entries,1), dA5dkEntries(1:nA5Entries,2), dA5dkValues(1:nA5Entries), nx*nu*nu, nk);
-m.dA6dk = sparse(dA6dkEntries(1:nA6Entries,1), dA6dkEntries(1:nA6Entries,2), dA6dkValues(1:nA6Entries), nx*nu,    nk);
-m.dadk  = sparse(dadkEntries(1:naEntries,1),   dadkEntries(1:naEntries,2),   dadkValues(1:naEntries),   nx,       nk);
-
+% Construct D matrices from the sparse entries
 m.dD1dk = sparse(dD1dkEntries(1:nD1Entries,1), dD1dkEntries(1:nD1Entries,2), dD1dkValues(1:nD1Entries), nr*nx,    nk);
 m.dD2dk = sparse(dD2dkEntries(1:nD2Entries,1), dD2dkEntries(1:nD2Entries,2), dD2dkValues(1:nD2Entries), nr*nx*nx, nk);
 m.dD3dk = sparse(dD3dkEntries(1:nD3Entries,1), dD3dkEntries(1:nD3Entries,2), dD3dkValues(1:nD3Entries), nr*nu*nx, nk);
 m.dD4dk = sparse(dD4dkEntries(1:nD4Entries,1), dD4dkEntries(1:nD4Entries,2), dD4dkValues(1:nD4Entries), nr*nx*nu, nk);
 m.dD5dk = sparse(dD5dkEntries(1:nD5Entries,1), dD5dkEntries(1:nD5Entries,2), dD5dkValues(1:nD5Entries), nr*nu*nu, nk);
 m.dD6dk = sparse(dD6dkEntries(1:nD6Entries,1), dD6dkEntries(1:nD6Entries,2), dD6dkValues(1:nD6Entries), nr*nu,    nk);
+m.dddk  = sparse(dddkEntries(1:ndEntries,1),   dddkEntries(1:ndEntries,2),   dddkValues(1:ndEntries),   nr,       nk);
 
-% Alternative shape
+% Compute A matrices
+m.dA1dk = reshape(m.S * reshape(m.dD1dk, nr, nx*nk   ), nx*nx,    nk);
+m.dA2dk = reshape(m.S * reshape(m.dD2dk, nr, nx*nx*nk), nx*nx*nx, nk);
+m.dA3dk = reshape(m.S * reshape(m.dD3dk, nr, nu*nx*nk), nx*nu*nx, nk);
+m.dA4dk = reshape(m.S * reshape(m.dD4dk, nr, nx*nu*nk), nx*nx*nu, nk);
+m.dA5dk = reshape(m.S * reshape(m.dD5dk, nr, nu*nu*nk), nx*nu*nu, nk);
+m.dA6dk = reshape(m.S * reshape(m.dD6dk, nr, nu*nk   ), nx*nu,    nk);
+m.dadk  = m.S * m.dddk;
+
+% Alternative shape for easier computation of derivatives
 m.dA1dk_fk_x  = spermute132(m.dA1dk, [nx,nx,nk],    [nx*nk,nx]);
 m.dA2dk_fk_xx = spermute132(m.dA2dk, [nx,nx*nx,nk], [nx*nk,nx*nx]);
 m.dA3dk_fk_ux = spermute132(m.dA3dk, [nx,nu*nx,nk], [nx*nk,nu*nx]);
@@ -1105,52 +1002,53 @@ m.dA4dk_fk_xu = spermute132(m.dA4dk, [nx,nx*nu,nk], [nx*nk,nx*nu]);
 m.dA5dk_fk_uu = spermute132(m.dA5dk, [nx,nu*nu,nk], [nx*nk,nu*nu]);
 m.dA6dk_fk_u  = spermute132(m.dA6dk, [nx,nu,nk],    [nx*nk,nu]);
 
-m.dD1dk_fk_x  = spermute132(m.dD1dk, [nr,nx,nk],    [nr*nk,nx]);
-m.dD2dk_fk_xx = spermute132(m.dD2dk, [nr,nx*nx,nk], [nr*nk,nx*nx]);
-m.dD3dk_fk_ux = spermute132(m.dD3dk, [nr,nu*nx,nk], [nr*nk,nu*nx]);
-m.dD4dk_fk_xu = spermute132(m.dD4dk, [nr,nx*nu,nk], [nr*nk,nx*nu]);
-m.dD5dk_fk_uu = spermute132(m.dD5dk, [nr,nu*nu,nk], [nr*nk,nu*nu]);
-m.dD6dk_fk_u  = spermute132(m.dD6dk, [nr,nu,nk],    [nr*nk,nu]);
+m.dD1dk_rk_x  = spermute132(m.dD1dk, [nr,nx,nk],    [nr*nk,nx]);
+m.dD2dk_rk_xx = spermute132(m.dD2dk, [nr,nx*nx,nk], [nr*nk,nx*nx]);
+m.dD3dk_rk_ux = spermute132(m.dD3dk, [nr,nu*nx,nk], [nr*nk,nu*nx]);
+m.dD4dk_rk_xu = spermute132(m.dD4dk, [nr,nx*nu,nk], [nr*nk,nx*nu]);
+m.dD5dk_rk_uu = spermute132(m.dD5dk, [nr,nu*nu,nk], [nr*nk,nu*nu]);
+m.dD6dk_rk_u  = spermute132(m.dD6dk, [nr,nu,nk],    [nr*nk,nu]);
 
-% Construct fullest possible matrices
-m.A1 = reshape(m.dA1dk * rand(nk,1), nx,nx);
-m.A2 = reshape(m.dA2dk * rand(nk,1), nx,nx*nx);
-m.A3 = reshape(m.dA3dk * rand(nk,1), nx,nu*nx);
-m.A4 = reshape(m.dA4dk * rand(nk,1), nx,nx*nu);
-m.A5 = reshape(m.dA5dk * rand(nk,1), nx,nu*nu);
-m.A6 = reshape(m.dA6dk * rand(nk,1), nx,nu);
-m.a  = m.dadk  * rand(nk,1);
+% Construct fullest possible matrices to determine which columns are used
+kRand = sparse(rand(nk,1));
+m.A1 = reshape(m.dA1dk * kRand, nx,nx);
+m.A2 = reshape(m.dA2dk * kRand, nx,nx*nx);
+m.A3 = reshape(m.dA3dk * kRand, nx,nu*nx);
+m.A4 = reshape(m.dA4dk * kRand, nx,nx*nu);
+m.A5 = reshape(m.dA5dk * kRand, nx,nu*nu);
+m.A6 = reshape(m.dA6dk * kRand, nx,nu);
+m.a  = m.dadk * kRand;
 
-m.D1 = reshape(m.dD1dk * rand(nk,1), nr,nx);
-m.D2 = reshape(m.dD2dk * rand(nk,1), nr,nx*nx);
-m.D3 = reshape(m.dD3dk * rand(nk,1), nr,nu*nx);
-m.D4 = reshape(m.dD4dk * rand(nk,1), nr,nx*nu);
-m.D5 = reshape(m.dD5dk * rand(nk,1), nr,nu*nu);
-m.D6 = reshape(m.dD6dk * rand(nk,1), nr,nu);
-
+m.D1 = reshape(m.dD1dk * kRand, nr,nx);
+m.D2 = reshape(m.dD2dk * kRand, nr,nx*nx);
+m.D3 = reshape(m.dD3dk * kRand, nr,nu*nx);
+m.D4 = reshape(m.dD4dk * kRand, nr,nx*nu);
+m.D5 = reshape(m.dD5dk * kRand, nr,nu*nu);
+m.D6 = reshape(m.dD6dk * kRand, nr,nu);
+m.d  = m.dddk * kRand;
 
 % Determine used columns of bimolecular matrices
-[unused A2UsedColumns] = find(m.A2);
-[unused A3UsedColumns] = find(m.A3);
-[unused A4UsedColumns] = find(m.A4);
-[unused A5UsedColumns] = find(m.A5);
+[unused D2UsedColumns] = find(m.D2);
+[unused D3UsedColumns] = find(m.D3);
+[unused D4UsedColumns] = find(m.D4);
+[unused D5UsedColumns] = find(m.D5);
 
-A2UsedColumns = unique(A2UsedColumns);
-A3UsedColumns = unique(A3UsedColumns);
-A4UsedColumns = unique(A4UsedColumns);
-A5UsedColumns = unique(A5UsedColumns);
+D2UsedColumns = unique(D2UsedColumns);
+D3UsedColumns = unique(D3UsedColumns);
+D4UsedColumns = unique(D4UsedColumns);
+D5UsedColumns = unique(D5UsedColumns);
 
-[A2UsedSpecies2 A2UsedSpecies1] = ind2sub([nx,nx], A2UsedColumns);
-[A3UsedSpecies2 A3UsedSpecies1] = ind2sub([nx,nu], A3UsedColumns);
-[A4UsedSpecies2 A4UsedSpecies1] = ind2sub([nu,nx], A4UsedColumns);
-[A5UsedSpecies2 A5UsedSpecies1] = ind2sub([nu,nu], A5UsedColumns);
+[D2UsedSpecies2 D2UsedSpecies1] = ind2sub([nx,nx], D2UsedColumns);
+[D3UsedSpecies2 D3UsedSpecies1] = ind2sub([nx,nu], D3UsedColumns);
+[D4UsedSpecies2 D4UsedSpecies1] = ind2sub([nu,nx], D4UsedColumns);
+[D5UsedSpecies2 D5UsedSpecies1] = ind2sub([nu,nu], D5UsedColumns);
 
 %% Empty out added items
-m.add.nv = 0;
+m.add.nv  = 0;
 m.add.nxu = 0;
-m.add.ny = 0;
-m.add.nk = 0;
-m.add.nr = 0;
+m.add.ny  = 0;
+m.add.nk  = 0;
+m.add.nr  = 0;
 m.add.Compartments = growCompartments([],0);
 m.add.Species      = growSpecies([],0);
 m.add.Outputs      = growOutputs([],0);
@@ -1158,11 +1056,11 @@ m.add.Parameters   = growParameters([],0);
 m.add.Reactions    = growReactions([],0);
 
 %% Final build of model
-m = final(m, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, A5UsedColumns, A5UsedSpecies1, A5UsedSpecies2);
+m = final(m, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2);
 
 end
 
-function m = final(m, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, A5UsedColumns, A5UsedSpecies1, A5UsedSpecies2)
+function m = final(m, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2)
 
 % Constants
 nx = m.nx;
@@ -1172,8 +1070,6 @@ nr = m.nr;
 isu = cat(1, m.Species.IsInput, false(0,1));
 
 % Build kronecker matrices
-
-
 sparsek = sparse(m.k);
 m.A1 = reshape(m.dA1dk * sparsek, nx,nx);
 m.A2 = reshape(m.dA2dk * sparsek, nx,nx*nx);
@@ -1200,16 +1096,27 @@ m.d2rdk2  = @d2rdk2;
 m.d2rdxdk = @d2rdxdk;
 m.d2rdkdx = @d2rdkdx;
 
-m.f = fHidden(m.A1, m.A2, m.A3, m.A4, m.A5, m.A6, m.a, m.B1, m.B2, m.b, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, A5UsedColumns, A5UsedSpecies1, A5UsedSpecies2, m.vxInd, m.vuInd);
+m.f = fHidden(m.A1, m.A2, m.A3, m.A4, m.A5, m.A6, m.a, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, m.vxInd, m.vuInd);
 
-m.dfdx = dfdxHidden(m.A1, m.A2, m.A3, m.A4, m.B1, m.B2, m.b, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, m.vxInd, m.vuInd);
-m.dfdu = dfduHidden(m.A3, m.A4, m.A5, m.A6, m.B1, m.B2, m.b, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, A5UsedColumns, A5UsedSpecies1, A5UsedSpecies2, m.vxInd, m.vuInd);
-m.dfdk = dfdkHidden(m.dA1dk_fk_x, m.dA2dk_fk_xx, m.dA3dk_fk_ux, m.dA4dk_fk_xu, m.dA5dk_fk_uu, m.dA6dk_fk_u, m.dadk, m.B1, m.B2, m.b, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, A5UsedColumns, A5UsedSpecies1, A5UsedSpecies2, m.vxInd, m.vuInd);
+m.dfdx = dfdxHidden(m.A1, m.A2, m.A3, m.A4, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, m.vxInd, m.vuInd);
+m.dfdu = dfduHidden(m.A3, m.A4, m.A5, m.A6, m.B1, m.B2, m.b, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, m.vxInd, m.vuInd);
+m.dfdk = dfdkHidden(m.dA1dk_fk_x, m.dA2dk_fk_xx, m.dA3dk_fk_ux, m.dA4dk_fk_xu, m.dA5dk_fk_uu, m.dA6dk_fk_u, m.dadk, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, m.vxInd, m.vuInd);
 
-m.d2fdx2  = d2fdx2Hidden(m.A2, m.B1, m.B2, m.b, A2UsedColumns, A2UsedSpecies2, m.vxInd);
+m.d2fdx2  = d2fdx2Hidden(m.A2, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies2, m.vxInd);
 m.d2fdk2  = d2fdk2Hidden(m.nx, m.nk);
-m.d2fdxdk = d2fdxdkHidden(m.dA1dk_fk_x, m.dA2dk_fk_xx, m.dA3dk_fk_ux, m.dA4dk_fk_xu, m.B1, m.B2, m.b, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, m.vxInd, m.vuInd);
-m.d2fdkdx = d2fdkdxHidden(m.dA1dk_fk_x, m.dA2dk_fk_xx, m.dA3dk_fk_ux, m.dA4dk_fk_xu, m.B1, m.B2, m.b, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, m.vxInd, m.vuInd);
+m.d2fdxdk = d2fdxdkHidden(m.dA1dk_fk_x, m.dA2dk_fk_xx, m.dA3dk_fk_ux, m.dA4dk_fk_xu, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, m.vxInd, m.vuInd);
+m.d2fdkdx = d2fdkdxHidden(m.dA1dk_fk_x, m.dA2dk_fk_xx, m.dA3dk_fk_ux, m.dA4dk_fk_xu, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, m.vxInd, m.vuInd);
+
+m.r = rHidden(m.D1, m.D2, m.D3, m.D4, m.D5, m.D6, m.d, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, m.vxInd, m.vuInd);
+
+m.drdx = drdxHidden(m.D1, m.D2, m.D3, m.D4, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, m.vxInd, m.vuInd);
+m.drdu = drduHidden(m.D3, m.D4, m.D5, m.D6, m.B1, m.B2, m.b, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, m.vxInd, m.vuInd);
+m.drdk = drdkHidden(m.dD1dk_rk_x, m.dD2dk_rk_xx, m.dD3dk_rk_ux, m.dD4dk_rk_xu, m.dD5dk_rk_uu, m.dD6dk_rk_u, m.dddk, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, m.vxInd, m.vuInd);
+
+m.d2rdx2  = d2rdx2Hidden(m.D2, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies2, m.vxInd);
+m.d2rdk2  = d2rdk2Hidden(m.nr, m.nk);
+m.d2rdxdk = d2rdxdkHidden(m.dD1dk_rk_x, m.dD2dk_rk_xx, m.dD3dk_rk_ux, m.dD4dk_rk_xu, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, m.vxInd, m.vuInd);
+m.d2rdkdx = d2rdkdxHidden(m.dD1dk_rk_x, m.dD2dk_rk_xx, m.dD3dk_rk_ux, m.dD4dk_rk_xu, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, m.vxInd, m.vuInd, m.nr);
 
 m.Ready = true;
 m.Update = @Update;
@@ -1238,11 +1145,11 @@ m.Update = @Update;
         end
         
         % Rebuild model
-        mout = final(mout, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, A5UsedColumns, A5UsedSpecies1, A5UsedSpecies2);
+        mout = final(mout, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2);
     end
 end
 
-function handle = fHidden(A1, A2, A3, A4, A5, A6, a, B1, B2, b, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, A5UsedColumns, A5UsedSpecies1, A5UsedSpecies2, vxInd, vuInd)
+function handle = fHidden(A1, A2, A3, A4, A5, A6, a, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, vxInd, vuInd)
 % Constants
 nx = numel(vxInd);
 nu = numel(vuInd);
@@ -1253,22 +1160,21 @@ handle = @f;
     function val = f(t, x, u)
 %   f = A1*x + A2*(x kron x/vx) + A3*(u kron x/vx) + A4*(x kron u/vu) + A5*(u kron u/vu) + A6*u + a
         % Compartment column
-        
         v = B1 * x + B2 * u + b;
         xvx = x ./ v(vxInd);
         uvu = u ./ v(vuInd);
         
         % Sparse kronecker multiplication
-        xkronx = sparse(A2UsedColumns, ones(numel(A2UsedColumns),1), x(A2UsedSpecies1) .* xvx(A2UsedSpecies2), nx*nx,1);
-        ukronx = sparse(A3UsedColumns, ones(numel(A3UsedColumns),1), u(A3UsedSpecies1) .* xvx(A3UsedSpecies2), nx*nu,1);
-        xkronu = sparse(A4UsedColumns, ones(numel(A4UsedColumns),1), x(A4UsedSpecies1) .* uvu(A4UsedSpecies2), nu*nx,1);
-        ukronu = sparse(A5UsedColumns, ones(numel(A5UsedColumns),1), u(A5UsedSpecies1) .* uvu(A5UsedSpecies2), nu*nu,1);
+        xkronx = sparse(D2UsedColumns, ones(numel(D2UsedColumns),1), x(D2UsedSpecies1) .* xvx(D2UsedSpecies2), nx*nx,1);
+        ukronx = sparse(D3UsedColumns, ones(numel(D3UsedColumns),1), u(D3UsedSpecies1) .* xvx(D3UsedSpecies2), nx*nu,1);
+        xkronu = sparse(D4UsedColumns, ones(numel(D4UsedColumns),1), x(D4UsedSpecies1) .* uvu(D4UsedSpecies2), nu*nx,1);
+        ukronu = sparse(D5UsedColumns, ones(numel(D5UsedColumns),1), u(D5UsedSpecies1) .* uvu(D5UsedSpecies2), nu*nu,1);
         
         val = A1 * x + A2 * xkronx + A3 * ukronx + A4 * xkronu + A5 * ukronu + A6 * u + a; % f_
     end
 end
 
-function handle = dfdxHidden(A1, A2, A3, A4, B1, B2, b, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, vxInd, vuInd)
+function handle = dfdxHidden(A1, A2, A3, A4, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, vxInd, vuInd)
 % Constants
 nx = numel(vxInd);
 nu = numel(vuInd);
@@ -1285,16 +1191,16 @@ handle = @dfdx;
         uvu = u ./ v(vuInd);
         
         % Sparse kronecker multiplication
-        Ixkronxvx = sparse(A2UsedColumns, A2UsedSpecies1, xvx(A2UsedSpecies2), nx*nx,nx);
-        xkron1vx  = sparse(A2UsedColumns, A2UsedSpecies2, x(A2UsedSpecies1) .* vx(A2UsedSpecies2), nx*nx,nx);
-        ukron1vx  = sparse(A3UsedColumns, A3UsedSpecies2, u(A3UsedSpecies1) .* vx(A3UsedSpecies2), nx*nu,nx);
-        Ixkronuvu = sparse(A4UsedColumns, A4UsedSpecies1, uvu(A4UsedSpecies2), nx*nu,nx);
+        Ixkronxvx = sparse(D2UsedColumns, D2UsedSpecies1, xvx(D2UsedSpecies2), nx*nx,nx);
+        xkron1vx  = sparse(D2UsedColumns, D2UsedSpecies2, x(D2UsedSpecies1) .* vx(D2UsedSpecies2), nx*nx,nx);
+        ukron1vx  = sparse(D3UsedColumns, D3UsedSpecies2, u(D3UsedSpecies1) .* vx(D3UsedSpecies2), nx*nu,nx);
+        Ixkronuvu = sparse(D4UsedColumns, D4UsedSpecies1, uvu(D4UsedSpecies2), nx*nu,nx);
         
         val = A1 + A2 * (Ixkronxvx + xkron1vx) + A3 * ukron1vx + A4 * Ixkronuvu; % f_x
     end
 end
 
-function handle = dfduHidden(A3, A4, A5, A6, B1, B2, b, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, A5UsedColumns, A5UsedSpecies1, A5UsedSpecies2, vxInd, vuInd)
+function handle = dfduHidden(A3, A4, A5, A6, B1, B2, b, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, vxInd, vuInd)
 % Constants
 nx = numel(vxInd);
 nu = numel(vuInd);
@@ -1311,16 +1217,16 @@ handle = @dfdu;
         uvu = u .* vu;
         
         % Sparse kronecker multiplication
-        Iukronxvx = sparse(A3UsedColumns, A3UsedSpecies1, xvx(A3UsedSpecies2), nx*nu,nu);
-        xkron1vu  = sparse(A4UsedColumns, A4UsedSpecies2, x(A4UsedSpecies1) .* vu(A4UsedSpecies2), nu*nx,nu);
-        Iukronuvu = sparse(A5UsedColumns, A5UsedSpecies1, uvu(A5UsedSpecies2), nu*nu,nu);
-        ukron1vu  = sparse(A5UsedColumns, A5UsedSpecies2, u(A5UsedSpecies1) .* vu(A5UsedSpecies2), nu*nu,nu);
+        Iukronxvx = sparse(D3UsedColumns, D3UsedSpecies1, xvx(D3UsedSpecies2), nx*nu,nu);
+        xkron1vu  = sparse(D4UsedColumns, D4UsedSpecies2, x(D4UsedSpecies1) .* vu(D4UsedSpecies2), nu*nx,nu);
+        Iukronuvu = sparse(D5UsedColumns, D5UsedSpecies1, uvu(D5UsedSpecies2), nu*nu,nu);
+        ukron1vu  = sparse(D5UsedColumns, D5UsedSpecies2, u(D5UsedSpecies1) .* vu(D5UsedSpecies2), nu*nu,nu);
         
         val = A3 * Iukronxvx + A4 * xkron1vu + A5 * (Iukronuvu + ukron1vu) + A6; % f_u
     end
 end
 
-function handle = dfdkHidden(dA1dk_fk_x, dA2dk_fk_xx, dA3dk_fk_ux, dA4dk_fk_xu, dA5dk_fk_uu, dA6dk_fk_u, dadk, B1, B2, b, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, A5UsedColumns, A5UsedSpecies1, A5UsedSpecies2, vxInd, vuInd)
+function handle = dfdkHidden(dA1dk_fk_x, dA2dk_fk_xx, dA3dk_fk_ux, dA4dk_fk_xu, dA5dk_fk_uu, dA6dk_fk_u, dadk, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, vxInd, vuInd)
 % Constants
 nx = numel(vxInd);
 nu = numel(vuInd);
@@ -1337,23 +1243,23 @@ handle = @dfdk;
         uvu = u ./ v(vuInd);
         
         % Sparse kronecker multiplication
-        xkronx = sparse(A2UsedColumns, ones(numel(A2UsedColumns),1), x(A2UsedSpecies1) .* xvx(A2UsedSpecies2), nx*nx,1);
-        ukronx = sparse(A3UsedColumns, ones(numel(A3UsedColumns),1), u(A3UsedSpecies1) .* xvx(A3UsedSpecies2), nx*nu,1);
-        xkronu = sparse(A4UsedColumns, ones(numel(A4UsedColumns),1), x(A4UsedSpecies1) .* uvu(A4UsedSpecies2), nu*nx,1);
-        ukronu = sparse(A5UsedColumns, ones(numel(A5UsedColumns),1), u(A5UsedSpecies1) .* uvu(A5UsedSpecies2), nu*nu,1);
+        xkronx = sparse(D2UsedColumns, ones(numel(D2UsedColumns),1), x(D2UsedSpecies1) .* xvx(D2UsedSpecies2), nx*nx,1);
+        ukronx = sparse(D3UsedColumns, ones(numel(D3UsedColumns),1), u(D3UsedSpecies1) .* xvx(D3UsedSpecies2), nx*nu,1);
+        xkronu = sparse(D4UsedColumns, ones(numel(D4UsedColumns),1), x(D4UsedSpecies1) .* uvu(D4UsedSpecies2), nu*nx,1);
+        ukronu = sparse(D5UsedColumns, ones(numel(D5UsedColumns),1), u(D5UsedSpecies1) .* uvu(D5UsedSpecies2), nu*nu,1);
         
         val = dA1dk_fk_x * sparse(x) + dA2dk_fk_xx * xkronx + dA3dk_fk_ux * ukronx + dA4dk_fk_xu * xkronu + dA5dk_fk_uu * ukronu + dA6dk_fk_u * sparse(u); % fk_
         val = reshape(val, nx,nk) + dadk; % f_k
     end
 end
 
-function handle = d2fdx2Hidden(A2, B1, B2, b, A2UsedColumns, A2UsedSpecies2, vxInd)
+function handle = d2fdx2Hidden(A2, B1, B2, b, D2UsedColumns, D2UsedSpecies2, vxInd)
 % Constants
 nx = size(A2,1);
 
 % Reverse the internal subscripts in the UsedColumns linear index
-[x1ind,x2ind] = ind2sub([nx,nx], A2UsedColumns);
-A2UsedColumnsReverse = sub2ind([nx, nx], x2ind, x1ind);
+[x1ind,x2ind] = ind2sub([nx,nx], D2UsedColumns);
+D2UsedColumnsReverse = sub2ind([nx, nx], x2ind, x1ind);
 
 % Return handle
 handle = @d2fdx2;
@@ -1365,7 +1271,7 @@ handle = @d2fdx2;
         vx = 1 ./ v(vxInd);
         
         % Second-order derivative of (x kron x/vx)
-        Ixkron1vx = sparse([A2UsedColumns; A2UsedColumns], [A2UsedColumns; A2UsedColumnsReverse], [vx(A2UsedSpecies2); vx(A2UsedSpecies2)], nx*nx,nx*nx);
+        Ixkron1vx = sparse([D2UsedColumns; D2UsedColumns], [D2UsedColumns; D2UsedColumnsReverse], [vx(D2UsedSpecies2); vx(D2UsedSpecies2)], nx*nx,nx*nx);
         
         val = A2 * Ixkron1vx; % f_xx
         val = reshape(val, nx*nx, nx); % fx_x
@@ -1382,7 +1288,7 @@ handle = @d2fdk2;
     end
 end
 
-function handle = d2fdxdkHidden(dA1dk_fk_x, dA2dk_fk_xx, dA3dk_fk_ux, dA4dk_fk_xu, B1, B2, b, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, vxInd, vuInd)
+function handle = d2fdxdkHidden(dA1dk_fk_x, dA2dk_fk_xx, dA3dk_fk_ux, dA4dk_fk_xu, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, vxInd, vuInd)
 % Constants
 nx = numel(vxInd);
 nu = numel(vuInd);
@@ -1399,16 +1305,16 @@ handle = @d2fdxdk;
         uvu = u ./ v(vuInd);
         
         % Sparse kronecker multiplication
-        Ixkronxvx = sparse(A2UsedColumns, A2UsedSpecies1, xvx(A2UsedSpecies2), nx*nx,nx);
-        xkron1vx  = sparse(A2UsedColumns, A2UsedSpecies2, x(A2UsedSpecies1) .* vx(A2UsedSpecies2), nx*nx,nx);
-        ukron1vx  = sparse(A3UsedColumns, A3UsedSpecies2, u(A3UsedSpecies1) .* vx(A3UsedSpecies2), nx*nu,nx);
-        Ixkronuvu = sparse(A4UsedColumns, A4UsedSpecies1, uvu(A4UsedSpecies2), nu*nx,nx);
+        Ixkronxvx = sparse(D2UsedColumns, D2UsedSpecies1, xvx(D2UsedSpecies2), nx*nx,nx);
+        xkron1vx  = sparse(D2UsedColumns, D2UsedSpecies2, x(D2UsedSpecies1) .* vx(D2UsedSpecies2), nx*nx,nx);
+        ukron1vx  = sparse(D3UsedColumns, D3UsedSpecies2, u(D3UsedSpecies1) .* vx(D3UsedSpecies2), nx*nu,nx);
+        Ixkronuvu = sparse(D4UsedColumns, D4UsedSpecies1, uvu(D4UsedSpecies2), nu*nx,nx);
         
         val = dA1dk_fk_x + dA2dk_fk_xx * (Ixkronxvx + xkron1vx) + dA3dk_fk_ux * ukron1vx + dA4dk_fk_xu * Ixkronuvu; % fx_k
     end
 end
 
-function handle = d2fdkdxHidden(dA1dk_fk_x, dA2dk_fk_xx, dA3dk_fk_ux, dA4dk_fk_xu, B1, B2, b, A2UsedColumns, A2UsedSpecies1, A2UsedSpecies2, A3UsedColumns, A3UsedSpecies1, A3UsedSpecies2, A4UsedColumns, A4UsedSpecies1, A4UsedSpecies2, vxInd, vuInd)
+function handle = d2fdkdxHidden(dA1dk_fk_x, dA2dk_fk_xx, dA3dk_fk_ux, dA4dk_fk_xu, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, vxInd, vuInd)
 % Constants
 nx = numel(vxInd);
 nu = numel(vuInd);
@@ -1426,12 +1332,207 @@ handle = @d2fdkdx;
         uvu = u ./ v(vuInd);
         
         % Sparse kronecker multiplication
-        Ixkronxvx = sparse(A2UsedColumns, A2UsedSpecies1, xvx(A2UsedSpecies2), nx*nx,nx);
-        xkron1vx  = sparse(A2UsedColumns, A2UsedSpecies2, x(A2UsedSpecies1) .* vx(A2UsedSpecies2), nx*nx,nx);
-        ukron1vx  = sparse(A3UsedColumns, A3UsedSpecies2, u(A3UsedSpecies1) .* vx(A3UsedSpecies2), nx*nu,nx);
-        Ixkronuvu = sparse(A4UsedColumns, A4UsedSpecies1, uvu(A4UsedSpecies2), nu*nx,nx);
+        Ixkronxvx = sparse(D2UsedColumns, D2UsedSpecies1, xvx(D2UsedSpecies2), nx*nx,nx);
+        xkron1vx  = sparse(D2UsedColumns, D2UsedSpecies2, x(D2UsedSpecies1) .* vx(D2UsedSpecies2), nx*nx,nx);
+        ukron1vx  = sparse(D3UsedColumns, D3UsedSpecies2, u(D3UsedSpecies1) .* vx(D3UsedSpecies2), nx*nu,nx);
+        Ixkronuvu = sparse(D4UsedColumns, D4UsedSpecies1, uvu(D4UsedSpecies2), nu*nx,nx);
         
         val = dA1dk_fk_x + dA2dk_fk_xx * (Ixkronxvx + xkron1vx) + dA3dk_fk_ux * ukron1vx + dA4dk_fk_xu * Ixkronuvu; % fx_k
         val = spermute132(val, [nx,nk,nx], [nx*nx,nk]); % fk_x 
+    end
+end
+
+function handle = rHidden(D1, D2, D3, D4, D5, D6, d, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, vxInd, vuInd)
+% Constants
+nx = numel(vxInd);
+nu = numel(vuInd);
+
+% Return handle
+handle = @r;
+
+    function val = r(t, x, u)
+%   r = D1*x + D2*(x kron x/vx) + D3*(u kron x/vx) + D4*(x kron u/vu) + D5*(u kron u/vu) + D6*u + d
+        % Compartment column
+        v = B1 * x + B2 * u + b;
+        xvx = x ./ v(vxInd);
+        uvu = u ./ v(vuInd);
+        
+        % Sparse kronecker multiplication
+        xkronx = sparse(D2UsedColumns, ones(numel(D2UsedColumns),1), x(D2UsedSpecies1) .* xvx(D2UsedSpecies2), nx*nx,1);
+        ukronx = sparse(D3UsedColumns, ones(numel(D3UsedColumns),1), u(D3UsedSpecies1) .* xvx(D3UsedSpecies2), nx*nu,1);
+        xkronu = sparse(D4UsedColumns, ones(numel(D4UsedColumns),1), x(D4UsedSpecies1) .* uvu(D4UsedSpecies2), nu*nx,1);
+        ukronu = sparse(D5UsedColumns, ones(numel(D5UsedColumns),1), u(D5UsedSpecies1) .* uvu(D5UsedSpecies2), nu*nu,1);
+        
+        val = D1 * x + D2 * xkronx + D3 * ukronx + D4 * xkronu + D5 * ukronu + D6 * u + d; % r_
+    end
+end
+
+function handle = drdxHidden(D1, D2, D3, D4, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, vxInd, vuInd)
+% Constants
+nx = numel(vxInd);
+nu = numel(vuInd);
+
+% Return handle
+handle = @drdx;
+
+    function val = drdx(t,x,u)
+%   drdx = D1 + D2*(Ix kron x/vx) + D2*(x kron diag(1/vx)) + D3*(u kron diag(1/vx))
+        % Compartment column
+        v = B1 * x + B2 * u + b;
+        vx = 1 ./ v(vxInd);
+        xvx = x .* vx;
+        uvu = u ./ v(vuInd);
+        
+        % Sparse kronecker multiplication
+        Ixkronxvx = sparse(D2UsedColumns, D2UsedSpecies1, xvx(D2UsedSpecies2), nx*nx,nx);
+        xkron1vx  = sparse(D2UsedColumns, D2UsedSpecies2, x(D2UsedSpecies1) .* vx(D2UsedSpecies2), nx*nx,nx);
+        ukron1vx  = sparse(D3UsedColumns, D3UsedSpecies2, u(D3UsedSpecies1) .* vx(D3UsedSpecies2), nx*nu,nx);
+        Ixkronuvu = sparse(D4UsedColumns, D4UsedSpecies1, uvu(D4UsedSpecies2), nx*nu,nx);
+        
+        val = D1 + D2 * (Ixkronxvx + xkron1vx) + D3 * ukron1vx + D4 * Ixkronuvu; % r_x
+    end
+end
+
+function handle = drduHidden(A3, A4, A5, A6, B1, B2, b, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, vxInd, vuInd)
+% Constants
+nx = numel(vxInd);
+nu = numel(vuInd);
+
+% Return handle
+handle = @drdu;
+
+    function val = drdu(t, x, u)
+%   drdu = D3*(Iu kron x/vx) + D4*(x kron diag(1/vu)) + D5*(Iu kron u/vu) + D5*(u kron diag(1/vu)) + D6
+        % Compartment column
+        v = B1 * x + B2 * u + b;
+        xvx = x ./ v(vxInd);
+        vu = 1 ./ v(vuInd);
+        uvu = u .* vu;
+        
+        % Sparse kronecker multiplication
+        Iukronxvx = sparse(D3UsedColumns, D3UsedSpecies1, xvx(D3UsedSpecies2), nx*nu,nu);
+        xkron1vu  = sparse(D4UsedColumns, D4UsedSpecies2, x(D4UsedSpecies1) .* vu(D4UsedSpecies2), nu*nx,nu);
+        Iukronuvu = sparse(D5UsedColumns, D5UsedSpecies1, uvu(D5UsedSpecies2), nu*nu,nu);
+        ukron1vu  = sparse(D5UsedColumns, D5UsedSpecies2, u(D5UsedSpecies1) .* vu(D5UsedSpecies2), nu*nu,nu);
+        
+        val = D3 * Iukronxvx + D4 * xkron1vu + D5 * (Iukronuvu + ukron1vu) + D6; % r_u
+    end
+end
+
+function handle = drdkHidden(dD1dk_rk_x, dD2dk_rk_xx, dD3dk_rk_ux, dD4dk_rk_xu, dD5dk_rk_uu, dD6dk_rk_u, dddk, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, vxInd, vuInd)
+% Constants
+nr = size(dddk,1);
+nx = numel(vxInd);
+nu = numel(vuInd);
+nk = size(dD1dk_rk_x, 1) / nr;
+
+% Return handle
+handle = @drdk;
+
+    function val = drdk(t, x, u)
+%   drdk = dD1dk*x + dD2dk*(x kron x/vx) + dD3dk*(u kron x/vx) + dD4dk*(x kron u/vu) + dD5dk*(u kron u/vu) + dD6dk*u + dddk
+        % Compartment column
+        v = B1 * x + B2 * u + b;
+        xvx = x ./ v(vxInd);
+        uvu = u ./ v(vuInd);
+        
+        % Sparse kronecker multiplication
+        xkronx = sparse(D2UsedColumns, ones(numel(D2UsedColumns),1), x(D2UsedSpecies1) .* xvx(D2UsedSpecies2), nx*nx,1);
+        ukronx = sparse(D3UsedColumns, ones(numel(D3UsedColumns),1), u(D3UsedSpecies1) .* xvx(D3UsedSpecies2), nx*nu,1);
+        xkronu = sparse(D4UsedColumns, ones(numel(D4UsedColumns),1), x(D4UsedSpecies1) .* uvu(D4UsedSpecies2), nu*nx,1);
+        ukronu = sparse(D5UsedColumns, ones(numel(D5UsedColumns),1), u(D5UsedSpecies1) .* uvu(D5UsedSpecies2), nu*nu,1);
+        
+        val = dD1dk_rk_x * sparse(x) + dD2dk_rk_xx * xkronx + dD3dk_rk_ux * ukronx + dD4dk_rk_xu * xkronu + dD5dk_rk_uu * ukronu + dD6dk_rk_u * sparse(u); % rk_
+        val = reshape(val, nr,nk) + dddk; % r_k
+    end
+end
+
+function handle = d2rdx2Hidden(D2, B1, B2, b, D2UsedColumns, D2UsedSpecies2, vxInd)
+% Constants
+nr = size(D2,1);
+nx = size(B2,2);
+
+% Reverse the internal subscripts in the UsedColumns linear index
+[x1ind,x2ind] = ind2sub([nx,nx], D2UsedColumns);
+D2UsedColumnsReverse = sub2ind([nx, nx], x2ind, x1ind);
+
+% Return handle
+handle = @d2rdx2;
+
+    function val = d2rdx2(t, x, u)
+%   d2rdx2 = 2*D2*(Ix kron diag(1/vx))
+        % Compartment column
+        v = B1 * x + B2 * u + b;
+        vx = 1 ./ v(vxInd);
+        
+        % Second-order derivative of (x kron x/vx)
+        Ixkron1vx = sparse([D2UsedColumns; D2UsedColumns], [D2UsedColumns; D2UsedColumnsReverse], [vx(D2UsedSpecies2); vx(D2UsedSpecies2)], nx*nx,nx*nx);
+        
+        val = D2 * Ixkron1vx; % r_xx
+        val = reshape(val, nr*nx, nx); % rx_x
+    end
+end
+
+function handle = d2rdk2Hidden(nr, nk)
+% Return handle
+handle = @d2rdk2;
+
+    function val = d2rdk2(t, x, u)
+%   d2rdk2 = 0
+        val = sparse(nr*nk, nk); % rk_k
+    end
+end
+
+function handle = d2rdxdkHidden(dD1dk_rk_x, dD2dk_rk_xx, dD3dk_rk_ux, dD4dk_rk_xu, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, vxInd, vuInd)
+% Constants
+nx = numel(vxInd);
+nu = numel(vuInd);
+
+% Return handle
+handle = @d2rdxdk;
+
+    function val = d2rdxdk(t, x, u)
+%   d2rdxdk = dD1dk + dD2dk*(Ix kron x/vx) + dD2dk*(x kron diag(1/vx)) + dD3dk*(u kron diag(1/vx)) + dD4dk*(Ix kron u/vu)
+        % Compartment column
+        v = B1 * x + B2 * u + b;
+        vx = 1 ./ v(vxInd);
+        xvx = x .* vx;
+        uvu = u ./ v(vuInd);
+        
+        % Sparse kronecker multiplication
+        Ixkronxvx = sparse(D2UsedColumns, D2UsedSpecies1, xvx(D2UsedSpecies2), nx*nx,nx);
+        xkron1vx  = sparse(D2UsedColumns, D2UsedSpecies2, x(D2UsedSpecies1) .* vx(D2UsedSpecies2), nx*nx,nx);
+        ukron1vx  = sparse(D3UsedColumns, D3UsedSpecies2, u(D3UsedSpecies1) .* vx(D3UsedSpecies2), nx*nu,nx);
+        Ixkronuvu = sparse(D4UsedColumns, D4UsedSpecies1, uvu(D4UsedSpecies2), nu*nx,nx);
+        
+        val = dD1dk_rk_x + dD2dk_rk_xx * (Ixkronxvx + xkron1vx) + dD3dk_rk_ux * ukron1vx + dD4dk_rk_xu * Ixkronuvu; % rx_k
+    end
+end
+
+function handle = d2rdkdxHidden(dD1dk_rk_x, dD2dk_rk_xx, dD3dk_rk_ux, dD4dk_rk_xu, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, vxInd, vuInd, nr)
+% Constants
+nx = numel(vxInd);
+nu = numel(vuInd);
+nk = size(dD1dk_rk_x, 1) / nr;
+
+% Return handle
+handle = @d2rdkdx;
+
+    function val = d2rdkdx(t, x, u)
+%   d2rdxdk = dD1dk + dD2dk*(Ix kron x/vx) + dD2dk*(x kron diag(1/vx)) + dD3dk*(u kron diag(1/vx)) + dD4dk*(Ix kron u/vu)
+        % Compartment column
+        v = B1 * x + B2 * u + b;
+        vx = 1 ./ v(vxInd);
+        xvx = x .* vx;
+        uvu = u ./ v(vuInd);
+        
+        % Sparse kronecker multiplication
+        Ixkronxvx = sparse(D2UsedColumns, D2UsedSpecies1, xvx(D2UsedSpecies2), nx*nx,nx);
+        xkron1vx  = sparse(D2UsedColumns, D2UsedSpecies2, x(D2UsedSpecies1) .* vx(D2UsedSpecies2), nx*nx,nx);
+        ukron1vx  = sparse(D3UsedColumns, D3UsedSpecies2, u(D3UsedSpecies1) .* vx(D3UsedSpecies2), nx*nu,nx);
+        Ixkronuvu = sparse(D4UsedColumns, D4UsedSpecies1, uvu(D4UsedSpecies2), nu*nx,nx);
+        
+        val = dD1dk_rk_x + dD2dk_rk_xx * (Ixkronxvx + xkron1vx) + dD3dk_rk_ux * ukron1vx + dD4dk_rk_xu * Ixkronuvu; % rx_k
+        val = spermute132(val, [nr,nk,nx], [nr*nx,nk]); % rk_x 
     end
 end
