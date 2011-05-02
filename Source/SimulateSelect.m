@@ -93,7 +93,7 @@ end
 assert(isscalar(m), 'KroneckerBio:Simulate:MoreThanOneModel', 'The model structure must be scalar')
 
 % Options
-defaultOpts.UseModelICs    = fals;
+defaultOpts.UseModelICs    = false;
 defaultOpts.UseModelInputs = false;
 defaultOpts.RelTol         = NaN;
 defaultOpts.AbsTol         = NaN;

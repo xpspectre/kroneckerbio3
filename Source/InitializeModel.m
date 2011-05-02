@@ -105,7 +105,7 @@ function m = InitializeModel(name)
 %           The number of outputs
 %       .nr [ whole scalar ]
 %           The number of elementary reactions
-%       .d [ whole vector nv ]
+%       .dv [ whole vector nv ]
 %           The dimensions of each compartment
 %       .k [ positive vector nk ]
 %           The values of each kinetic parameter
@@ -270,7 +270,7 @@ m.ny = 0;
 m.nk = 0;
 m.nr = 0;
 
-m.d  = zeros(0,1);
+m.dv = zeros(0,1);
 m.k  = zeros(0,1);
 m.x0 = zeros(0,1);
 m.u  = @(t)(zeros(0,1));
@@ -323,6 +323,29 @@ m.d2fdxdk = @(t,x,u)(zeros(0,0));
 m.d2fdkdx = @(t,x,u)(zeros(0,0));
 
 m.S = zeros(0,0);
+
+m.D1 = zeros(0,0);
+m.D2 = zeros(0,0);
+m.D3 = zeros(0,0);
+m.D4 = zeros(0,0);
+m.D5 = zeros(0,0);
+m.D6 = zeros(0,0);
+m.d  = zeros(0,0);
+
+m.dD1dk = zeros(0,0);
+m.dD2dk = zeros(0,0);
+m.dD3dk = zeros(0,0);
+m.dD4dk = zeros(0,0);
+m.dD5dk = zeros(0,0);
+m.dD6dk = zeros(0,0);
+m.dddk  = zeros(0,0);
+m.dD1dk_rk_x  = zeros(0,0);
+m.dD2dk_rk_xx = zeros(0,0);
+m.dD3dk_rk_ux = zeros(0,0);
+m.dD4dk_rk_xu = zeros(0,0);
+m.dD5dk_rk_uu = zeros(0,0);
+m.dD6dk_rk_u  = zeros(0,0);
+
 m.r = @(t,x,u)(zeros(0,1));
 
 m.drdx = @(t,x,u)(zeros(0,0));

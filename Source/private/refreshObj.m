@@ -17,7 +17,7 @@ newObj = Gzero([nObj,nCon,nTop]);
 for iTop = 1:nTop
     for iCon = 1:nCon
         for iObj = 1:nObj
-            newObj(iObj,iCon,iTop) = pastestruct(Gzero(m(iTop)), obj(iObj,iCon,iTop).Update(m(iTop), con(iCon,iTop)), UseParams{iTop}, UseICs{iTop}(:,iCon), UseControls{iCon,iTop});
+            newObj(iObj,iCon,iTop) = pastestruct(Gzero(m(iTop)), obj(iObj,iCon,iTop).Update(m(iTop), con(iCon,iTop), UseParams{iTop}, UseICs{iTop}(:,iCon), UseControls{iCon,iTop}));
         end
     end
 end

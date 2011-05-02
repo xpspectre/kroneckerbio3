@@ -12,7 +12,7 @@ nCon = size(con, 1);
 nObj = size(obj, 1);
 nTk = nnz(useParams);
 nTx = nnz(useICs);
-[unused nTq] = fixUseControls(useControls, useModelInputs, nCon, m.nq, cat(1,con.nq));
+[useControls nTq] = fixUseControls(useControls, useModelInputs, nCon, m.nq, cat(1,con.nq));
 nT = nTk + nTx + nTq;
 
 % Update parameter sets
@@ -44,13 +44,13 @@ end
 
 % Update model
 if useModelICs && useModelInputs
-    m = m.update(k, x0, q);
+    m = m.Update(k, x0, q);
 elseif useModelICs
-    m = m.update(k, x0, m.q);
+    m = m.Update(k, x0, m.q);
 elseif useModelInputs
-    m = m.update(k, m.x0, q);
+    m = m.Update(k, m.x0, q);
 else
-    m = m.update(k, m.ic, m.q);
+    m = m.Update(k, m.x0, m.q);
 end
 
 % Update experimental conditions

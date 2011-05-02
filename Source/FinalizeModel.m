@@ -304,7 +304,7 @@ x0uInd(isu) = 1:nu;
 
 %% Process compartments
 % Dimensions
-m.d = [m.Compartments.Dimension].';
+m.dv = [m.Compartments.Dimension].';
 
 % Entries in each sparse matrix for compartment conversion
 nB1Entries = 0;
@@ -665,7 +665,7 @@ for ir =1:nr
     elseif reactant1Exists && reactant2Exists && reactant1IsState && reactant2IsState
         % D2/A2 reaction
         % Order reactants so that freest species is second
-        if m.d(m.vxInd(reactant1)) > m.d(m.vxInd(reactant2)) || (m.d(m.vxInd(reactant1)) == m.d(m.vxInd(reactant2)) && reactant1 > reactant2)
+        if m.dv(m.vxInd(reactant1)) > m.dv(m.vxInd(reactant2)) || (m.dv(m.vxInd(reactant1)) == m.dv(m.vxInd(reactant2)) && reactant1 > reactant2)
             [reactant1 reactant2] = deal(reactant2, reactant1); % Swap
         end
         
@@ -723,12 +723,12 @@ for ir =1:nr
     elseif reactant1Exists && reactant2Exists && xor(reactant2IsState, reactant1IsState)
         % Order reactants so that freest species is second
         if reactant1IsState
-            if m.d(m.vxInd(reactant1)) > m.d(m.vuInd(reactant2))
+            if m.dv(m.vxInd(reactant1)) > m.dv(m.vuInd(reactant2))
                 [reactant1 reactant2] = deal(reactant2, reactant1); % Swap
                 [reactant1IsState reactant2IsState] = deal(reactant2IsState, reactant1IsState);
             end
         else
-            if m.d(m.vuInd(reactant1)) >= m.d(m.vxInd(reactant2))
+            if m.dv(m.vuInd(reactant1)) >= m.dv(m.vxInd(reactant2))
                 [reactant1 reactant2] = deal(reactant2, reactant1); % Swap
                 [reactant1IsState reactant2IsState] = deal(reactant2IsState, reactant1IsState);
             end
@@ -835,7 +835,7 @@ for ir =1:nr
     elseif reactant1Exists && reactant2Exists && ~reactant1IsState && ~reactant2IsState
         % D5/A5 reaction
         % Order reactants so that freest species is second
-        if m.d(m.vuInd(reactant1)) > m.d(m.vuInd(reactant2)) || (m.d(m.vuInd(reactant1)) == m.d(m.vuInd(reactant2)) && reactant1 > reactant2)
+        if m.dv(m.vuInd(reactant1)) > m.dv(m.vuInd(reactant2)) || (m.dv(m.vuInd(reactant1)) == m.dv(m.vuInd(reactant2)) && reactant1 > reactant2)
             [reactant1 reactant2] = deal(reactant2, reactant1); % Swap
         end
         
@@ -1450,7 +1450,7 @@ end
 function handle = d2rdx2Hidden(D2, B1, B2, b, D2UsedColumns, D2UsedSpecies2, vxInd)
 % Constants
 nr = size(D2,1);
-nx = size(B2,2);
+nx = numel(vxInd);
 
 % Reverse the internal subscripts in the UsedColumns linear index
 [x1ind,x2ind] = ind2sub([nx,nx], D2UsedColumns);
