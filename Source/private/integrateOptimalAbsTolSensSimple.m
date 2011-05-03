@@ -1,27 +1,25 @@
 function [optimalGRatio optimalDRatio] = integrateOptimalAbsTolSensSimple(m, con, obj, opts)
-% There can only be one con
-
 %% Constants
-nX = m.nX;
-nVP = sum(opts.UseParams);
-nVX = sum(sum(opts.UseICs));
-nV  = nVP + nVX;
+nx = m.nx;
+nTk = sum(opts.UseParams);
+nTx = sum(sum(opts.UseICs));
+nT  = nTk + nTx;
 nObj = numel(obj);
 
 verbose = opts.Verbose;
 opts.Verbose = max(opts.Verbose-1,0);
 
-absTolStart = nX+nX*nV+1;
-absTolEnd   = nX+nX*nV+nX*nX+nX*nV*nX;
-dxdvStart   = nX+1;
-dxdvEnd     = nX+nX*nV;
+absTolStart = nx+nx*nT+1;
+absTolEnd   = nx+nx*nT+nx*nx+nx*nT*nx;
+dxdTStart   = nx+1;
+dxdTEnd     = nx+nx*nT;
 dxdx0Start  = 1;
-dxdx0End    = nX*nX;
-dsdx0Start  = nX*nX+1;
-dsdx0End    = nX*nX+nX*nV*nX;
+dxdx0End    = nx*nx;
+dsdx0Start  = nx*nx+1;
+dsdx0End    = nx*nx+nx*nT*nx;
 
 %% Integrate the basic system
-% Complete integration required even if objective function
+% Complete integration required even if objective function doesn't need it
 if verbose; fprintf('Integrating initial sensitivities...'); end
 sol = integrateSens(m, con, opts);
 if verbose; fprintf('done.\n'); end
@@ -42,50 +40,50 @@ if verbose; fprintf('Covering %d out of %d times...\n', nPick, nt); end
 % Discrete Times
 discreteTimes = [];
 for iObj = 1:nObj
-    discreteTimes = [discreteTimes; vec(obj(iObj).discreteTimes)];
+    discreteTimes = [discreteTimes; vec(obj(iObj).DiscreteTimes)];
 end
 discreteTimes = unique(discreteTimes);
 nDisc = numel(discreteTimes);
 
 % Precompute dG/dx at all times
-dGdx = zeros(nX,nDisc);
+dGdx = zeros(nx,nDisc);
 for iDisc = 1:nDisc
     for iObj = 1:nObj
-        dGdx(:,iDisc) = dGdx(:,iDisc) + opts.ObjWeights(iObj) * vec(obj(iObj).dGdx(discreteTimes(iDisc), sol, con, 1));
+        dGdx(:,iDisc) = dGdx(:,iDisc) + opts.ObjWeights(iObj) * vec(obj(iObj).dGdx(discreteTimes(iDisc), sol));
     end
 end
 
 %% Sensitivities at all timepoints
-effect = zeros(nX+nV*nX,nPick);
+effect = zeros(nx+nT*nx,nPick);
 
 % Initial conditions are the same for all runs
-ic = sparse(nX*nX+nX*nX*nV,1);
-ic(dxdx0Start:dxdx0End) = speye(nX);
+ic = zeros(nx*nx+nx*nx*nT,1);
+ic(dxdx0Start:dxdx0End) = speye(nx);
+
+% Input
+if opts.UseModelInputs
+    u = m.u;
+else
+    u = con.u;
+end
 
 for it = 1:nPick
     % Construct system
-    [jDer, jJac] = constructSystem();
+    [der, jac] = constructSystem();
     
     % Set the integration intervals
     t0 = sol.x(selectIndex(it));
     Disc0 = find(discreteTimes >= t0, 1); % First index in discreteTimes that matters
-    stopTimes = unique([t0; con.tF; con.tStop((con.tStop > t0) & (con.tStop < con.tF))]);
     
     % Integrate [dx/dx0; d2x/dx0dv]
     if verbose; fprintf('Integrating from time %d...', t0); end
-    if numel(stopTimes) > 1
-        % There is actual integration to be done
-        soli = accumulateSol(jDer, jJac, [], [], ic, con, opts.AbsTol(absTolStart:absTolEnd), opts.RelTol, stopTimes, 1, [], discreteTimes(Disc0:nDisc));
-    else
-        % This is the final timepoint, no need to integrate
-        soli.x = stopTimes;
-        soli.y = ic;
-    end
+    % There is actual integration to be done
+    soli = accumulateOde(der, jac, t0, con.tF, ic, u, con.Discontinuities, [], opts.RelTol, opts.AbsTol(absTolStart:absTolEnd));
     if verbose; fprintf('done.\n'); end
     
     % Compute the effect over remaining time
     for iu = Disc0:nDisc % index into discreteTimes
-        effect(:,it) = effect(:,it) + vec(dGdx(:,iu).' * reshape(soli.y(:,iu-Disc0+1), nX,nX+nV*nX)); % multiply by dG/dx, and sum over time
+        effect(:,it) = effect(:,it) + vec(dGdx(:,iu).' * reshape(soli.y(:,iu-Disc0+1), nx,nx+nT*nx)); % multiply by dG/dx, and sum over time
     end
 end
 
@@ -95,25 +93,25 @@ effect = abs(effect);
 clear soli % very large matrix
 
 %% Maximum impact
-maximpact = zeros(1+nV,1);
+maximpact = zeros(1+nT,1);
 for it = 1:nPick
     % The impact is absolute
-    x = abs(sol.y(1:nX,selectIndex(it))); % x_
-    xbox = spdiags(x,0,nX,nX); % x_x diagonal
-    dxdv = abs(reshape(sol.y(nX+1:nX+nX*nV,selectIndex(it)),nX,nV)); % x_v
+    x = abs(sol.y(1:nx,selectIndex(it))); % x_
+    xbox = spdiags(x,0,nx,nx); % x_x diagonal
+    dxdT = abs(reshape(sol.y(nx+1:nx+nx*nT,selectIndex(it)),nx,nT)); % x_T
     
-    xeffect = effect(1:nX,it);
-    xeffectbox = spdiags(xeffect,0,nX,nX);
-    dxdpeffect = reshape(effect(nX+1:nX+nX*nV),nV,nX);
+    xeffect = effect(1:nx,it);
+    xeffectbox = spdiags(xeffect,0,nx,nx);
+    dxdpeffect = reshape(effect(nx+1:nx+nx*nT),nT,nx);
     
     % Impact that x has on G
     maximpact(1) = max([maximpact(1); xeffect .* x]); % x_ .* x_ --> x_
     
     % Impact that x has on dG/v
-    maximpact(2:end) = max(maximpact(2:end), max(dxdpeffect*xbox, [],2)); % (vx_ --> v_x) * x_x --> v_x --> v_
+    maximpact(2:end) = max(maximpact(2:end), max(dxdpeffect*xbox, [],2)); % (vx_ --> T_x) * x_x --> T_x --> T_
     
     % Impact that dx/dv has on dG/dv
-    maximpact(2:end) = max(maximpact(2:end), vec(max(xeffectbox*dxdv, [],1))); % x_x * x_v --> x_v --> _v --> v_
+    maximpact(2:end) = max(maximpact(2:end), vec(max(xeffectbox*dxdT, [],1))); % x_x * x_T --> x_T --> _T --> T_
 end
 
 %% Optimal impact from ratio
@@ -121,31 +119,31 @@ end
 effect = max(effect, [], 2);
 
 % Impact ratio for x's impact on G
-optimalGRatio = maximpact(1) ./ effect(1:nX);
+optimalGRatio = maximpact(1) ./ effect(1:nx);
 
 % Initialize D
-optimalDRatio = zeros(nX+nX*nV,1);
+optimalDRatio = zeros(nx+nx*nT,1);
 
 % Impact ratio for x's impact on dG/dv
 % There can only be one abstol, take the most conservative
-optimalDRatio(1:nX) = min(optimalGRatio, min(spdiags(maximpact(2:end), 0,nV,nV) * reshape(effect(nX+1:nX+nV*nX), nV,nX).^-1, [],1).');
+optimalDRatio(1:nx) = min(optimalGRatio, min(spdiags(maximpact(2:end), 0,nT,nT) * reshape(effect(nx+1:nx+nT*nx), nT,nx).^-1, [],1).');
 
 % Impact ratio for dx/dp's impact on dG/dp
 % There is no need to take the maximum over v because the entries are
 % unique along v. dx/dv only affects dG/dv of the same v
-optimalDRatio(nX+1:nX+nX*nV) = (maximpact(2:end) * (effect(1:nX).^(-1)).').'; % v_ * (x_ --> _x) --> v_x --> x_v --> xv_
+optimalDRatio(nx+1:nx+nx*nT) = (maximpact(2:end) * (effect(1:nx).^(-1)).').'; % T_ * (x_ --> _x) --> T_x --> x_T --> xT_
 
 % End of function
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     function [jDer, jJac] = constructSystem()
         
-        Ix = speye(nX);
-        Ipx = speye(nV*nX);
+        Ix = speye(nx);
+        Ipx = speye(nT*nx);
     
         dfdx    = m.dfdx;
         d2fdx2  = m.d2fdx2;
-        d2fdvdx = @d2fdvdxSub;
+        d2fdTdx = @d2fdTdxSub;
         
         jDer = @der;
         jJac = @jac;
@@ -153,23 +151,19 @@ optimalDRatio(nX+1:nX+nX*nV) = (maximpact(2:end) * (effect(1:nX).^(-1)).').'; % 
         % Derivative of [dx/dx0; d2x/dx0dv] with respect to time
         function val = der(t, joint, u)
             u = u(t);
-            jointold = deval(sol, t, 1:dxdvEnd); % x+xv_
-            x = jointold(1:nX); % x_
-            dxdv = reshape(jointold(dxdvStart:dxdvEnd), nX,nV); % x_v
-            dxdx0 = reshape(joint(dxdx0Start:dxdx0End), nX,nX); % x_x0
-            dsdx0 = reshape(joint(dsdx0Start:dsdx0End), nX,nV*nX); % x_vx0
+            jointold = deval(sol, t, 1:dxdTEnd); % x+xT_
+            x = jointold(1:nx); % x_
+            dxdT = reshape(jointold(dxdTStart:dxdTEnd), nx,nT); % x_T
+            dxdx0 = reshape(joint(dxdx0Start:dxdx0End), nx,nx); % x_x0
+            dsdx0 = reshape(joint(dsdx0Start:dsdx0End), nx,nT*nx); % x_Tx0
             
             % Derivative of dx/dx0
             dxdx0dot = vec(dfdx(t,x,u) * dxdx0); % x_x * x_x0 --> x_x0 --> xx0_
             
             % Derivative of ds/dx0
-            dsdx0dot = d2fdx2(t,x,u) * dxdv + d2fdvdx(t,x,u); % fx_x * x_v + fx_v --> fx_v
-            dsdx0dot = full(dsdx0dot); % fx_v
-            dsdx0dot = reshape(dsdx0dot, nX,nX,nV); % fx_v --> f_x_v
-            dsdx0dot = permute(dsdx0dot, [1,3,2]); % f_x_v --> f_v_x
-            dsdx0dot = reshape(dsdx0dot, nX*nV,nX); % f_v_x --> fv_x
-            dsdx0dot = sparse(dsdx0dot); % fv_x
-            dsdx0dot = vec(dsdx0dot * dxdx0) + vec(dfdx(t,x,u) * dsdx0); % (fv_x * x_x0 --> fv_x0 --> fvx0_) + (f_x * x_vx0 --> f_vx0 --> fvx0_) --> fvx0_
+            dsdx0dot = d2fdx2(t,x,u) * dxdT + d2fdTdx(t,x,u); % fx_x * x_T + fx_T --> fx_T
+            dsdx0dot = spermute132(dsdx0dot, [nx,nx,nT], [nx*nT,nx]); % fx_T --> fT_x
+            dsdx0dot = vec(dsdx0dot * dxdx0) + vec(dfdx(t,x,u) * dsdx0); % (fT_x * x_x0 --> fT_x0 --> fTx0_) + (f_x * x_Tx0 --> f_Tx0 --> fTx0_) --> fTx0_
             
             % Combine all three
             val = [dxdx0dot; dsdx0dot];
@@ -178,27 +172,23 @@ optimalDRatio(nX+1:nX+nX*nV) = (maximpact(2:end) * (effect(1:nX).^(-1)).').'; % 
         % Jacobian of [dx/dx0; d2x/dx0dv] derivative
         function val = jac(t, joint, u)
             u = u(t);
-            jointold = deval(sol, t, 1:nX+nX*nV); % x+xv_
-            x = jointold(1:nX); % x_
-            dxdv = reshape(jointold(dxdvStart:dxdvEnd), nX,nV); % x_v
+            jointold = deval(sol, t, 1:nx+nx*nT); % x+xT_
+            x = jointold(1:nx); % x_
+            dxdT = reshape(jointold(dxdTStart:dxdTEnd), nx,nT); % x_T
             
             % Jacobian of ds/dx0 wrt dx/dx0
-            d2sdxdx0dx0 = d2fdx2(t,x,u) * dxdv + d2fdvdx(t,x,u); % fx_x * x_v + fx_v --> fx_v
-            d2sdxdx0dx0 = full(d2sdxdx0dx0); % fx_v
-            d2sdxdx0dx0 = reshape(d2sdxdx0dx0, nX,nX,nV); % fx_v --> f_x_v
-            d2sdxdx0dx0 = permute(d2sdxdx0dx0, [1,3,2]); % f_x_v --> f_v_x
-            d2sdxdx0dx0 = reshape(d2sdxdx0dx0, nX*nV,nX); % f_v_x --> fv_x
-            d2sdxdx0dx0 = sparse(d2sdxdx0dx0); % fv_x
+            d2sdxdx0dx0 = d2fdx2(t,x,u) * dxdT + d2fdTdx(t,x,u); % fx_x * x_T + fx_T --> fx_T
+            d2sdxdx0dx0 = spermute132(d2sdxdx0dx0, [nx,nx,nT], [nx*nT,nx]); % fx_T --> fT_x
             
             % Combine all
-            val = [kron(Ix, dfdx(t,x,u)), sparse(nX*nX,nX*nV*nX);
+            val = [kron(Ix, dfdx(t,x,u)), sparse(nx*nx,nx*nT*nx);
                    kron(Ix, d2sdxdx0dx0), kron(Ipx, dfdx(t,x,u))];
         end
         
-        % Modifies d2fdpdx to relate only to the parameters of interest
-        function val = d2fdvdxSub(t, x, u)
-            val = m.d2fdpdx(t,x,u);
-            val = [val(:, opts.UseParams) zeros(nX*nX, nVX)];
+        % Modifies d2fdkdx to relate only to the parameters of interest
+        function val = d2fdTdxSub(t, x, u)
+            val = m.d2fdkdx(t,x,u);
+            val = [val(:, opts.UseParams) zeros(nx*nx, nTx)];
         end
         
     end

@@ -34,9 +34,9 @@ if isempty(absTol) || (~iscell(absTol) && all(vec(isnan(absTol))))
 end
 
 % Constants
-nVP = sum(useParams);
-nVX = sum(sum(useICs));
-nV = nVP + nVX;
+nTk = sum(useParams);
+nTx = sum(sum(useICs));
+nT = nTk + nTx;
 
 abstol = cell(nCon,1);
 
@@ -60,6 +60,7 @@ switch order
                 end
             end
         else %selfSensitivities
+            error('Self sensitivities not yet supported for first order.')
         end
     case 2
         if ~selfSensitivities
@@ -69,11 +70,11 @@ switch order
                 if useAdjoint
                     if isscalar(absTol)
                         % Copy the value to all species and conditions
-                        abstol = repmat({zeros(nX+1+nX+nV,1) + absTol}, nCon,1);
+                        abstol = repmat({zeros(nX+1+nX+nT,1) + absTol}, nCon,1);
                     else %isvector
                         % Copy the vector. Only if integrateObj is zero allow the
                         % wrong length vector to be supplied.
-                        assert(length(absTol) == nX+1+nX+nV, 'KroneckerBio:AbsTol:InvalidAbsTolLength', 'That is not a valid length for AbsTol')
+                        assert(length(absTol) == nX+1+nX+nT, 'KroneckerBio:AbsTol:InvalidAbsTolLength', 'That is not a valid length for AbsTol')
                         abstol = repmat({absTol}, nCon,1);
                     end
                 else %~useAdjoint
@@ -82,37 +83,37 @@ switch order
                         for i = 1:nCon
                             if useModelICs
                                 % Number of parameters is constant across conditions
-                                inV = nV;
+                                inT = nT;
                             else
                                 % Number of IC parameters may vary across conditions
-                                inV = sum(useICs(:,i)) + nVP;
+                                inT = sum(useICs(:,i)) + nTk;
                             end
-                            abstol{i} = zeros(nX+integrateObj(i)+nX*inV+integrateObj(i)*inV,1) + absTol;
+                            abstol{i} = zeros(nX+integrateObj(i)+nX*inT+integrateObj(i)*inT,1) + absTol;
                         end
-                    elseif numel(absTol) == nX*(nV+1)
+                    elseif numel(absTol) == nX*(nT+1)
                         if any(integrateObj)
                             error('KroneckerBio:AbsTol:VectorWithContinuousObjective', 'Failed to specify AbsTol for continuous objective and gradient')
                         else
-                            if nCon == 1 || useModelICs || nVX == 0
+                            if nCon == 1 || useModelICs || nTx == 0
                                 % Number of parameters is the same across conditions.
                                 abstol = repmat({vec(absTol)}, nCon,1);
                             else
                                 error('KroneckerBio:AbsTol:VectorWithMultipleVariableExperimentICs', 'A vector cannot be provided for AbsTol if UseModelICs is false and there are variable ICs')
                             end
                         end
-                    elseif numel(absTol) == nX+1+nX*nV+nV
+                    elseif numel(absTol) == nX+1+nX*nT+nT
                         for i = 1:nCon
-                            if nCon == 1 || useModelICs || nVX == 0
+                            if nCon == 1 || useModelICs || nTx == 0
                                 % Number of parameters is the same across conditions.
                                 abstol{i} = [absTol(1:nX);
                                     repmat(absTol(nX+1), integrateObj(i),1);
-                                    absTol(nX+1+1:nX+1+nX*nV);
-                                    repmat(absTol(nX+1+nX*nV+1:nX+1+nX*nV+nV), integrateObj(i),1)];
+                                    absTol(nX+1+1:nX+1+nX*nT);
+                                    repmat(absTol(nX+1+nX*nT+1:nX+1+nX*nT+nT), integrateObj(i),1)];
                             else
                                 error('KroneckerBio:AbsTol:VectorWithMultipleVariableExperimentICs', 'A vector cannot be provided for AbsTol if UseModelICs is false and there are variable ICs')
                             end
                         end
-                    elseif all(numel(absTol) == nX+integrateObj+nX*nV+nV*integrateObj)
+                    elseif all(numel(absTol) == nX+integrateObj+nX*nT+nT*integrateObj)
                         % AbsTol is the correct length for all experiments
                         abstol = repmat({absTol}, nCon,1);
                     else
@@ -130,14 +131,14 @@ switch order
                         for i = 1:nCon
                             if useModelICs
                                 % Number of parameters is constant across conditions
-                                inV = nV;
+                                inT = nT;
                             else
                                 % Number of IC parameters may vary across conditions
-                                inV = sum(useICs(:,i)) + nVP;
+                                inT = sum(useICs(:,i)) + nTk;
                             end
-                            abstol{i} = zeros(nX+integrateObj(i)+nX*inV+integrateObj(i)*inV+nX*nX+nX*inV*nX,1) + absTol;
+                            abstol{i} = zeros(nX+integrateObj(i)+nX*inT+integrateObj(i)*inT+nX*nX+nX*inT*nX,1) + absTol;
                         end
-                    elseif all(numel(absTol) == nX+integrateObj+nX*nV+nV*integrateObj+nX*nX+nX*nV*nX)
+                    elseif all(numel(absTol) == nX+integrateObj+nX*nT+nT*integrateObj+nX*nX+nX*nT*nX)
                         % AbsTol is the correct length for all experiments
                         abstol = repmat({absTol}, nCon,1);
                     else

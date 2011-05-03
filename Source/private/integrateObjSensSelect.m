@@ -115,10 +115,11 @@ sol.c  = m.c;
             
             % Compute d/dx(dfdT)
             d2xdxdT = d2fdx2(t,x,u) * dxdT + d2fdTdx(t,x,u); % fx_T
-            d2xdxdT = full(d2xdxdT); % fx_T
-            d2xdxdT = reshape(d2xdxdT, nx,nx,nT); % f_x_T
-            d2xdxdT = permute(d2xdxdT, [1,3,2]); % f_T_x
-            d2xdxdT = reshape(d2xdxdT, nx*nT,nx); % fT_x
+            d2xdxdT = spermute132(d2xdxdT, [nx,nx,nT], [nx*nT,nx]);
+%             d2xdxdT = full(d2xdxdT); % fx_T
+%             d2xdxdT = reshape(d2xdxdT, nx,nx,nT); % f_x_T
+%             d2xdxdT = permute(d2xdxdT, [1,3,2]); % f_T_x
+%             d2xdxdT = reshape(d2xdxdT, nx*nT,nx); % fT_x
             
             % Combine
             val = [dfdx(t, x, u), sparse(nx,1+nx*nT+nT);

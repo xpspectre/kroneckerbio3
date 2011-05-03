@@ -55,7 +55,7 @@ obj = refreshObj(m, con, obj);
 if isnumeric(opts.UseParams) && (isempty(opts.UseParams) || any(isnan(opts.UseParams)))
     opts.UseParams = cell(nTop,1);
     for iTop = 1:nTop
-        opts.UseParams{iTop} = 1:m(iTop).nP;
+        opts.UseParams{iTop} = 1:m(iTop).nk;
     end
 end
 
@@ -124,7 +124,7 @@ end
 %% Fit
 if opts.NeedFit
     for iTop = 1:nTop
-        if verbose; fprintf(['Fitting ' m(iTop).name ' to objectives...\n']); end
+        if verbose; fprintf(['Fitting ' m(iTop).Name ' to objectives...\n']); end
         m(iTop) = FitObjective(m(iTop), con(:,iTop), obj(:,:,iTop), optsTop(iTop));
     end
 end
@@ -140,7 +140,7 @@ pym = zeros(nTop,1);
 pyTm = ones(nTop,1);
 F = cell(nTop,1);
 for iTop = 1:nTop
-    if verbose; fprintf(['Computing probability of ' m(iTop).name '...\n']); end
+    if verbose; fprintf(['Computing probability of ' m(iTop).Name '...\n']); end
     % Likelihood
     pyTm(iTop) = ObjectiveProbability(m(iTop), con(:,iTop), obj(:,:,iTop), optsTop(iTop));
     

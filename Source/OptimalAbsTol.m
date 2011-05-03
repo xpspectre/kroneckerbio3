@@ -2,43 +2,50 @@ function [GTolRatio DTolRatio] = OptimalAbsTol(m, con, obj, opts)
 
 %% Options
 defaultOpts.Coverage                = 1;
-defaultOpts.UseParams               = 1:m.nP;
-defaultOpts.UseICs                  = [];
+
 defaultOpts.UseModelICs             = true;
+defaultOpts.UseModelInputs          = true;
+defaultOpts.UseParams               = 1:m.nk;
+defaultOpts.UseICs                  = [];
+defaultOpts.UseControls             = [];%TODO
+
 defaultOpts.ObjWeights              = ones(size(obj));
-defaultOpts.UseAdjoint              = true;
-defaultOpts.Verbose                 = 1;
+defaultOpts.Normalized              = true;
+defaultOpts.UseAdjoint              = false;
 
 defaultOpts.AbsTol                  = NaN; % in fixAbsTol
-defaultOpts.RelTol                  = NaN; % 1e-6
+defaultOpts.RelTol                  = NaN; % in fixRelTol
+defaultOpts.Verbose                 = 1;
 
 opts = mergestruct(defaultOpts, opts);
 
+verbose = logical(opts.Verbose);
+opts.Verbose = max(opts.Verbose-1,0);
+
 % Constants
-nX = m.nX;
-nP = m.nP;
+nx = m.nx;
+nk = m.nk;
 nCon = numel(con);
-nObj = size(obj,2);
+nObj = size(obj,1);
 
 % Ensure UseRates is column vector of logical indexes
-[opts.UseParams, nVP] = fixUseParams(opts.UseParams, nP);
+[opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
 
 % Ensure UseICs is a matrix of logical indexes
-[opts.UseICs, nVX] = fixUseICs(opts.UseICs, opts.UseModelICs, nX, nCon);
+[opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 
-nV = nVX + nVP;
+nT = nTk + nTx;
 
 %% Integration type: simple, continuous, complex, or both
 % Fix integration type
 [opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(obj);
 
 %% Tolerances
-if isempty(opts.RelTol) || isnan(opts.RelTol)
-    opts.RelTol = 1e-6;
-end
+% RelTol
+opts.RelTol = fixRelTol(opts.RelTol);
 
 % Fix AbsTol to be a cell array of vectors appropriate to the problem
-opts.AbsTol = fixAbsTol(opts.AbsTol, 2, opts.continuous, nX, nCon, opts.UseAdjoint, opts.UseParams, opts.UseICs, opts.UseModelICs, true);
+opts.AbsTol = fixAbsTol(opts.AbsTol, 2, opts.continuous, nx, nCon, opts.UseAdjoint, opts.UseParams, opts.UseICs, opts.UseModelICs, true);
 
 %% Determine the order of the integration
 if nargout <= 1
@@ -48,7 +55,6 @@ elseif nargout <= 2
 end
 
 intOpts = opts;
-intOpts.Verbose = max(opts.Verbose-1,0);
 
 GTolRatio = cell(nCon,1);
 DTolRatio = cell(nCon,1);
@@ -57,19 +63,19 @@ for iCon = 1:nCon
     % Modify opts structure
     intOpts.AbsTol = opts.AbsTol{iCon};
     intOpts.tGet = opts.tGet{iCon};
-    intOpts.ObjWeights = opts.ObjWeights(iCon,:);
+    intOpts.ObjWeights = opts.ObjWeights(:,iCon);
     
-    if opts.Verbose; fprintf(['Computing optimal tolerance ratio for ' con(iCon).name '...\n']); end
+    if verbose; fprintf(['Computing optimal tolerance ratio for ' con(iCon).Name '...\n']); end
     % Integrate the basic system
     if order == 0
         if opts.continuous(iCon)
-            sol = integrateObjFwd(m, con, obj, intOpts);
+            %sol = integrateObjFwd(m, con, obj, intOpts);
         else
-            sol = integrateObjFwdComplex(m, con, obj, intOpts);
+            %sol = integrateObjFwdComplex(m, con, obj, intOpts);
         end
     elseif order == 1
         if opts.continuous(iCon)
-            sol = integrateObjSensFwd(m, con, obj, intOpts);
+            %sol = integrateObjSensFwd(m, con, obj, intOpts);
         else
             [GTolRatio{iCon} DTolRatio{iCon}] = integrateOptimalAbsTolSensSimple(m, con, obj, intOpts);
         end

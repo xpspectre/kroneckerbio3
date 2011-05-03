@@ -47,7 +47,7 @@ else
 end
 
 % discontinuities will be a column vector sorted ascending
-discontinuities = discontinuities((discontinuities < tF));
+discontinuities = discontinuities((discontinuities > t0) & (discontinuities < tF));
 discontinuities = unique([vec(discontinuities); t0; tF]);
 
 % Error checking inputs
@@ -264,7 +264,7 @@ if ~isempty(delta)
     end
 end
 
-% if no integration was performed return an appropriate structure
+% If no integration was performed return an appropriate structure
 if N == 1
     if fullSol
         cumSol.solver = 'ode15s';

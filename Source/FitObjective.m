@@ -152,8 +152,6 @@ defaultOpts.ObjWeights              = ones(size(obj));
 defaultOpts.UseAdjoint              = true;
 
 defaultOpts.TolOptim                = 1e-5;
-defaultOpts.AbsTol                  = NaN; % in fixAbsTol
-defaultOpts.RelTol                  = NaN; % 1e-6
 defaultOpts.AdaptAbsTol             = true;
 defaultOpts.Normalized              = true;
 defaultOpts.Restart                 = 0;
@@ -165,6 +163,8 @@ defaultOpts.Algorithm               = 'active-set';
 defaultOpts.MaxIter                 = 1000;
 defaultOpts.MaxFunEvals             = 5000;
 
+defaultOpts.AbsTol                  = NaN; % in fixAbsTol
+defaultOpts.RelTol                  = NaN; % 1e-6
 defaultOpts.Verbose                 = 1;
 
 opts = mergestruct(defaultOpts, opts);
