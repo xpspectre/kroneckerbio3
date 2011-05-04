@@ -82,11 +82,11 @@ function m = InitializeModel(name)
 %               The name of the reaction. This can be empty and is only
 %               used by the model modification functions to alter or remove
 %               reactions by name.
-%           .Reactants [cell vector 1 by 2 of strings ]
+%           .Reactants [ cell vector 1 by 2 of strings ]
 %               Each string corresponds to the full name a specific species
 %               that is a reactant in this reaction. If a string is
 %               empty, it means that no species takes part.
-%           .Products [cell vector 1 by 2 of strings ]
+%           .Products [ cell vector 1 by 2 of strings ]
 %               Each string corresponds to the full name a specific species
 %               that is a product of this reaction. If a string is
 %               empty, it means that no species is created.
@@ -210,6 +210,50 @@ function m = InitializeModel(name)
 %       .r [ handle @(t,x,u) returns real vector nr ]
 %           The rate of each elementary reaction according to the curent
 %           state of the system.
+%       .D1 [ real matrix nr by nx]
+%           Map of how each state contributes to the reaction rates
+%       .D2 [ real matrix nr by nx*nx ]
+%           Map of how each product of states in x kron x/vx contributes to
+%           the reaction rates
+%       .D3 [ real matrix nr by nu*nx ]
+%           Map of how each product in u kron x/vx  contributes to
+%           the reaction rates
+%       .D4 [ real matrix nr by nx*nu ]
+%           Map of how each product in x kron u/vu contributes to
+%           the reaction rates
+%       .D5 [ real matrix nr by nu*nu ]
+%           Map of how each product of inputs in u kron u/vu contributes to
+%           the reaction rates
+%       .D6 [ real matrix nr by nu ]
+%           Map of how each input contributes to the reaction rates
+%       .d [ nonnegative vector nr]
+%           Contribution of constituitive synthesis to the reaction rates
+%       .dD1dk [ real matrix nr*nx by nk] (rx_k)
+%           Derivative of D1 wrt k
+%       .dD2dk [ real matrix nr*nx*nx by nk ] (rxx_k)
+%           Derivative of D2 wrt k
+%       .dD3dk [ real matrix nr*nu*nx by nk ] (rux_k)
+%           Derivative of D3 wrt k
+%       .dD4dk [ real matrix nr*nx*nu by nk ] (rxu_k)
+%           Derivative of D4 wrt k
+%       .dD5dk [ real matrix nr*nu*nu by nk ] (ruu_k)
+%           Derivative of D5 wrt k
+%       .dD6dk [ real matrix nr*nu by nk ] (ru_k)
+%           Derivative of D6 wrt k
+%       .dddk [ real matrix nr by nk ] (r_k)
+%           Derivative of d wrt k
+%       .dD1dk_rk_x [ real matrix nr*nk by nx ] (rk_x)
+%           Reshape of dD1dk for faster computation of drdk
+%       .dD2dk_rk_xx [ real matrix nr*nk by nx*nx ] (rk_xx)
+%           Reshape of dD2dk for faster computation of drdk
+%       .dD3dk_rk_ux [ real matrix nr*nk by nu*nx ] (rk_ux)
+%           Reshape of dD3dk for faster computation of drdk
+%       .dD4dk_rk_xu [ real matrix nr*nk by nx*nu ] (rk_xu)
+%           Reshape of dD4dk for faster computation of drdk
+%       .dD5dk_rk_uu [ real matrix nr*nk by nu*nu ] (rk_uu)
+%           Reshape of dD5dk for faster computation of drdk
+%       .dD6dk_rk_u [ real matrix nr*nk by nu ] (rk_u)
+%           Reshape of dD6dk for faster computation of drdk
 %       .drdx [ handle @(t,x,u) returns real matrix nr by nx ]
 %           The partial derivative of r wrt x
 %       .drdu [ handle @(t,x,u) returns real matrix nr by nu ]
@@ -237,7 +281,7 @@ function m = InitializeModel(name)
 %           FinalizeModel is called. Storing them here and processing them
 %           all at once at the end is faster than lengthing each struct
 %           vector one element a time.
-%       .Update [handle @(k,x0,q) return struct scalar ]
+%       .Update [ handle @(k,x0,q) return struct scalar ]
 %           This function handle allows the parameter values of the model
 %           to be changed without having to rebuild the model. Each vector
 %           k, x0, and q must have the same size as their model
@@ -361,11 +405,11 @@ m.Ready  = true;
 m.add    = struct;
 m.Update = @(k,x0,q)(InitializeModel(name));
 
-m.add.nv = 0;
+m.add.nv  = 0;
 m.add.nxu = 0;
-m.add.ny = 0;
-m.add.nk = 0;
-m.add.nr = 0;
+m.add.ny  = 0;
+m.add.nk  = 0;
+m.add.nr  = 0;
 
 m.add.Compartments = growCompartments([], 0);
 m.add.Species      = growSpecies([], 0);

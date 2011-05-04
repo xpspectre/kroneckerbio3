@@ -191,14 +191,14 @@ obj.Update = @update;
             Vsort = spdiags(Vsort(I),0,tlength,tlength); % Replace diagonal with sorted version
             
             % Compute dX2/dx = 2*e'*W*dy/dx = 2*e'*W*C
-            val = 2*e'*(Vsort\C1);
+            val = vec(2*e'*(Vsort\C1));
         else
-            val = zeros(1, nx);
+            val = zeros(nx, 1);
         end
     end
 
     function val = dGdk(t,sol)
-        val = sparse(1, nk);
+        val = sparse(nk, 1);
     end
 
     function val = d2Gdx2(t,sol)

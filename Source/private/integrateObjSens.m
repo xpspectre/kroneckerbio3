@@ -89,7 +89,7 @@ sol.c  = m.c;
                 g = g + opts.ObjWeights(i) * obj(i).g(t, x, u);
                 temp = vec(obj(i).dgdk(t, x, u)); % k_
                 temp = [temp(:,opts.UseParams); sparse(nTx,1)]; % k_ --> T_   % remove rows for inactive parameters
-                dgdT = dgdT + opts.ObjWeights(i) * (vec(obj(i).dgdx(t, x, u) * dxdT) + temp); % T_ + (_x * x_T --> _T --> T_) + T_ --> T_
+                dgdT = dgdT + opts.ObjWeights(i) * (vec(vec(obj(i).dgdx(t, x, u)).' * dxdT) + temp); % T_ + (_x * x_T --> _T --> T_) + T_ --> T_
             end
                         
             val = [f(t, x, u); g; vec(dxdTdot); dgdT];
@@ -105,7 +105,7 @@ sol.c  = m.c;
             dgdx = zeros(1,nx); % _x
             d2gdxdT = sparse(nT,nx); % T_x
             for i = 1:nObj
-                dgdx = dgdx + opts.ObjWeights(i) * obj(i).dgdx(t, x, u); % _x
+                dgdx = dgdx + opts.ObjWeights(i) * vec(obj(i).dgdx(t, x, u)).'; % _x
                 
                 % Compute d/dx(dgdT)
                 temp = obj(i).d2gdxdk(t,x,u); % Partial d2gdpdx k_x

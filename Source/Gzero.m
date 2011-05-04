@@ -181,10 +181,10 @@ obj.Update = @Update;
         val = 0;
     end
     function val = dgdx(t,x,u)
-        val = sparse(1, nx);
+        val = sparse(nx, 1);
     end
     function val = dgdk(t,x,u)
-        val = sparse(1, nk);
+        val = sparse(nk, 1);
     end
     function val = d2gdx2(t,x,u)
         val = sparse(nx, nx);
@@ -204,10 +204,10 @@ obj.Update = @Update;
         discreteTimes = zeros(0,1);
     end
     function val = dGdx(t,sol)
-        val = sparse(1, nx);
+        val = sparse(nx, 1);
     end
     function val = dGdk(t,sol)
-        val = sparse(1, nk);
+        val = sparse(nk, 1);
     end
     function val = d2Gdx2(t,sol)
         val = sparse(nx, nx);
@@ -222,6 +222,7 @@ obj.Update = @Update;
         val = sparse(nk, nx);
     end
     
+    % For Objective.Information
     function val = F(dxdTSol)
         nT = (size(dxdTSol.y, 1) - nx) / nx;
         val = zeros(nT,nT);
@@ -237,6 +238,7 @@ obj.Update = @Update;
         val = 1;
     end
 
+    % For Objective.Data
     function obj = AddData(sol)
         obj = Gzero(m);
     end
