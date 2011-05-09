@@ -25,7 +25,7 @@ end
 
 % Check inputs
 n = numel(kbar);
-assert(all(size(Vkbar) == [n,n]), 'KroneckerBio:constructObjectiveParameterNormal:Vsize', 'Input "Vkbar" must be a square matrix of numel(kbar)')
+assert(ndims(Vkbar) == 2 && all(size(Vkbar) == [n,n]), 'KroneckerBio:constructObjectiveParameterNormal:Vsize', 'Input "Vkbar" must be a square matrix of numel(kbar)')
 
 % Find unique times
 discreteTimes = 0;
@@ -60,7 +60,7 @@ clear temp
 
 % Objective structure
 obj.Type = 'Objective.Information';
-obj.Name = 'PriorKineticParameters';
+obj.Name = 'PriorKineticParametersNormal';
 
 obj.Continuous    = false;
 obj.Complex       = false;

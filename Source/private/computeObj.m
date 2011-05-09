@@ -44,7 +44,7 @@ for iCon = 1:nCon
     % Compute discrete term
     discG = 0;
     for iObj = 1:nObj
-        iDiscG = obj(iCon,iObj).G(sol);
+        iDiscG = obj(iObj,iCon).G(sol);
         discG = discG + opts.ObjWeights(iObj,iCon) * iDiscG;
     end
     

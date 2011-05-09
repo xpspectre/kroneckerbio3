@@ -4,12 +4,6 @@ function m = FinalizeModel(m)
 %
 %   m = FinalizeModel(m)
 %
-%   Inputs
-%   m: [ model struct scalar ]
-%
-%   Outputs
-%   m: [ model struct scalar ]
-%
 %   Some components of Kronecker models are cyclically dependent
 %   (compartment volumes depend on species and species are placed into
 %   compartments). Because of this, it is not possible to design Kronecker
@@ -22,6 +16,12 @@ function m = FinalizeModel(m)
 %
 %   Forgetting to call this function and using a model which has Ready set
 %   to false will result in undefined behavior.
+%
+%   Inputs
+%   m: [ model struct scalar ]
+%
+%   Outputs
+%   m: [ model struct scalar ]
 
 % (c) 2011 David R Hagen & Bruce Tidor
 % This work is released under the MIT license.
@@ -552,6 +552,9 @@ m.c  = sparse(cEntries(:,1),  cEntries(:,2),  cValues,  m.ny, 1);
 m.k = cat(1, m.Parameters.Value, zeros(0,1));
 
 %% Process Reactions
+m.rOrder = zeros(nr,1);
+m.krInd  = zeros(nr,1);
+
 nSEntries  = 0;
 nD1Entries = 0;
 nD2Entries = 0;
@@ -604,6 +607,8 @@ for ir =1:nr
         end
     end
     
+    m.rOrder(ir) = reactant1Exists + reactant2Exists; % Store order
+    
     product1 = find(strcmp(m.Reactions(ir).Products{1}, xNamesFull));
     product1IsState = ~isempty(product1);
     
@@ -612,6 +617,7 @@ for ir =1:nr
     
     parameter = find(strcmp(m.Reactions(ir).Parameter, {m.Parameters.Name}));
     assert(~isempty(parameter), 'KroneckerBio:FinalizeModel:MissingReactionParameter', 'Reaction %s (#%i) requires parameter %s, but no parameter by that name was found', m.Reactions(ir).Name, ir, m.Reactions(ir).Parameter)
+    m.krInd(ir) = parameter; % Store index
     
     % Switch on reactant state
     if reactant1Exists && ~reactant2Exists && reactant1IsState

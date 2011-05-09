@@ -126,6 +126,10 @@ function m = InitializeModel(name)
 %           The indexes to the compartments containing each state species
 %       .vuInd [ natural vector nx ]
 %           The indexes to the compartments containing each input species
+%       .rOrder [ 0 1 2 vector nr ]
+%           The order of each reaction
+%       .krInd [ natural vector nr ]
+%           The indexes to the parameters associated with each reaction
 %       .A1 [ real matrix nx by nx]
 %           Map of how each state contributes to the mass action ODEs
 %       .A2 [ real matrix nx by nx*nx ]
@@ -324,6 +328,8 @@ m.dudq = zeros(0,0);
 m.nqu    = zeros(0,1);
 m.vxInd  = zeros(0,1);
 m.vuInd  = zeros(0,1);
+m.rOrder = zeros(0,1);
+m.krInd  = zeros(0,1);
 
 m.A1 = zeros(0,0);
 m.A2 = zeros(0,0);

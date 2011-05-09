@@ -6,6 +6,15 @@ function [m, con, G, D] = FitObjective(m, con, obj, opts)
 %
 %   [m, con, G, D] = FitObjective(m, con, obj, opts)
 %
+%   FitObjective uses the derivatives in the Kronecker model and in the
+%   objective functions to build a function that can not only evaluate the
+%   objective functions at particular parameter sets, but also evaluate the
+%   gradient at those parameter sets, thereby pointing in the direction of
+%   a more optimum parameter set. This function is built around Matlab's
+%   fmincon, which is a gradient descent minimizer. It varies the
+%   parameters attempting to find the parameter set that will minimize the
+%   objective function while keeping with the bounds.
+%
 %   Inputs
 %   m: [ model struct scalar ]
 %       The KroneckerBio model that will be simulated
@@ -119,17 +128,8 @@ function [m, con, G, D] = FitObjective(m, con, obj, opts)
 %           The optimum objective function value
 %       D: [ real vector nT ]
 %           The objective gradient at the optimum parameter set
-%
-%   FitObjective uses the derivatives in the Kronecker model and in the
-%   objective functions to build a function that can not only evaluate the
-%   objective functions at particular parameter sets, but also evaluate the
-%   gradient at those parameter sets, thereby pointing in the direction of
-%   a more optimum parameter set. This function is built around Matlab's
-%   fmincon, which is a gradient descent minimizer. It varies the
-%   parameters attempting to find the parameter set that will minimize the
-%   objective function while keeping with the bounds.
 
-% (c) 2010 David R Hagen & Bruce Tidor
+% (c) 2011 David R Hagen & Bruce Tidor
 % This work is released under the MIT license.
 
 % Clean up inputs

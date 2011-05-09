@@ -13,8 +13,8 @@ defaultOpts.ObjWeights              = ones(size(obj));
 defaultOpts.Normalized              = true;
 defaultOpts.UseAdjoint              = false;
 
-defaultOpts.AbsTol                  = NaN; % in fixAbsTol
 defaultOpts.RelTol                  = NaN; % in fixRelTol
+defaultOpts.AbsTol                  = NaN; % in fixAbsTol
 defaultOpts.Verbose                 = 1;
 
 opts = mergestruct(defaultOpts, opts);

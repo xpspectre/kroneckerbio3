@@ -20,7 +20,7 @@ end
 nEntries = nargin - start + 1;
 
 % Arguments for an empty struct of the appropriate size
-entries = [varargin(start:end); repmat(cell(dim), 1,nEntries)];
+entries = [varargin(start:end); repmat({cell(dim)}, 1,nEntries)];
 
 % Build empty structure
 s = struct(entries{:});

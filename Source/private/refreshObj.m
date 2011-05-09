@@ -11,7 +11,7 @@ function newObj = refreshObj(m, con, obj, UseParams, UseICs, UseControls)
 % This work is released under the MIT license.
 
 nTop = numel(m);
-nCon = size(obj, 1);
+nCon = size(con, 1);
 nObj = size(obj, 1);
 newObj = Gzero([nObj,nCon,nTop]);
 for iTop = 1:nTop
