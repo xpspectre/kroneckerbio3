@@ -84,7 +84,7 @@ sol.c  = m.c;
             dxdT = reshape(joint(dxdTStart:dxdTEnd), nx,nT); % x_T
             
             % Compute d/dx(dfdT)
-            d2xdxdT = d2fdx2(t,x,u) * dxdT + d2fdTdx(t,x,u); % fx_T
+            d2xdxdT = sparse(d2fdx2(t,x,u) * dxdT) + d2fdTdx(t,x,u); % fx_T
             d2xdxdT = spermute132(d2xdxdT, [nx,nx,nT], [nx*nT,nx]);
             
             % Combine
