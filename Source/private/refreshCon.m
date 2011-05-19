@@ -14,6 +14,6 @@ nCon = size(con,1);
 newCon = Uzero([nCon,nTop]);
 for iTop = 1:nTop
     for iCon = 1:nCon
-        newCon(iCon,iTop) = pastestruct(Uzero(m(iTop)), con(iCon,iTop).Update(con(iCon,iTop).x0), con(iCon,iTop).q);
+        newCon(iCon,iTop) = pastestruct(Uzero(m(iTop)), con(iCon,iTop).Update(con(iCon,iTop).x0, con(iCon,iTop).q));
     end
 end

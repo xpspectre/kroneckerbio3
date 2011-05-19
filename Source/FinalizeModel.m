@@ -77,6 +77,9 @@ m.Species = [m.Species; rmfield(m.add.Species(~handled), 'Units')];
 
 % Update count
 isu = cat(1, m.Species.IsInput, false(0,1));
+m.isu = isu;
+m.xInd = find(~isu);
+m.uInd = find(isu);
 m.nu = nnz(isu);
 m.nx = numel(m.Species) - m.nu;
 xuNamesFull = strcat({m.Species.Compartment}, '.', {m.Species.Name});

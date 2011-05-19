@@ -113,7 +113,7 @@ for iCon = 1:nCon
     end
     
     % dxdTGoodRatio
-    % If the model is linear, then the maximum value of dx/dT is T/x. A good
+    % If the model is linear, then the maximum value of dx/dT is x/T. A good
     % ratio would therefore be x/T
     dxdTGoodRatio = bsxfun(@rdivide, xGoodRatio, T.'); % x_T
     dxdTGoodRatio = vec(dxdTGoodRatio); % xT_

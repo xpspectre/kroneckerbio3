@@ -59,8 +59,6 @@ function [F All] = ObjectiveInformation(m, con, obj, opts, dxdTSol)
 % (c) 2010 David R Hagen & Bruce Tidor
 % This work is released under the MIT license.
 
-% TODO: make the discreteTimes more general.
-
 %% Work-up
 % Clean up inputs
 assert(nargin >= 3, 'KroneckerBio:ObjectiveInformation:AtLeastThreeInputs', 'ObjectiveExpectedHessian requires at least 3 input arguments.')
@@ -93,7 +91,7 @@ opts.Verbose = max(opts.Verbose-1,0);
 nx = m.nx;
 nk = m.nk;
 nCon = length(con);
-nObj = size(obj, 2);
+nObj = size(obj, 1);
 
 % Ensure UseRates is column vector of logical indexes
 [opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
@@ -101,14 +99,12 @@ nObj = size(obj, 2);
 % Ensure UseICs is a matrix of linear indexes
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 
-% Add missing fields to structure
-con = pastestruct(Uzero(m), con);
-obj = pastestruct(Gzero(m), obj);
+% Standardize structures
+con = refreshCon(m, con);
+obj = refreshObj(m, con, obj, {opts.UseParams}, {opts.UseICs}, {opts.UseControls});
 
 % Fix integration type
 [opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(obj);
-
-intOpts = opts;
 
 nT = nTx + nTk;
 
@@ -127,6 +123,7 @@ opts.AbsTol = fixAbsTol(opts.AbsTol, 2, opts.continuous, nx, nCon, opts.UseAdjoi
 %% Loop through conditions
 F = zeros(nT,nT);
 Txind = nTk+1; % Stores the position in F where the first variable IC goes for each iCon
+intOpts = opts;
 
 % Initialize All array if requested
 if nargout >= 2
@@ -153,7 +150,6 @@ for iCon = 1:nCon
         
         % Modify opts structure
         intOpts.AbsTol = opts.AbsTol{iCon};
-        intOpts.ObjWeights = opts.ObjWeights(:,iCon);
         tGet = opts.tGet{iCon};
         
         % Integrate

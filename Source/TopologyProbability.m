@@ -1,7 +1,10 @@
-function [pmy pyTm F m] = TopologyProbability(m, con, obj, opts)
-% Clean-up inputs
-if nargin < 4
-    opts = [];
+function [pmy pyTm F m] = TopologyProbability(m, con, obj, opts, F)
+% Clean up inputs
+if nargin < 5
+    F = [];
+    if nargin < 4
+        opts = [];
+    end
 end
 
 % Constants
@@ -10,13 +13,14 @@ nCon = size(con,1);
 nObj = size(obj,1);
 
 % Options
-defaultOpts.RelTol         = NaN; % 1e-6
+defaultOpts.RelTol         = NaN; % in fixRelTol
 defaultOpts.AbsTol         = NaN; % in fixAbsTol
-defaultOpts.UseModelICs    = true;
+defaultOpts.UseModelICs    = false;
 defaultOpts.UseAdjoint     = false;
 
 defaultOpts.UseParams      = NaN; % All kinetic parameters
 defaultOpts.UseICs         = NaN; % No initial conditions
+defaultOpts.UseControls    = [];
 
 defaultOpts.PriorTopology  = zeros(nTop,1) + 1/nTop; % Uniform prior
 defaultOpts.NeedFit        = true; % Fit the parameters
@@ -35,21 +39,6 @@ for iTop = 1:nTop
     nk(iTop) = m(iTop).nk;
 end
 
-%% Standardize structures
-% Experimental conditions
-assert((size(con,2) == 1 && (opts.UseModelICs || all(nx == nx(1)))) || size(con,2) == nTop, 'KroneckerBio:TopologyProbability:ConSize', 'Second dimension of input "con" must be equal to numel(m) or 1 if opts.UseModelICs is false or every model has the same number of species')
-if size(con,2) == 1
-    con = repmat(con, 1,nTop);
-end
-con = refreshCon(m, con);
-
-% Objective functions
-assert(size(obj,3) == 1 || size(obj,3) == nTop, 'KroneckerBio:TopologyProbability:ObjSize', 'Third dimension of input "obj" must be equal to numel(m) or 1')
-if size(obj,3) == 1
-    obj = repmat(obj, [1,1,nTop]);
-end
-obj = refreshObj(m, con, obj);
-
 %% Active Parameters
 % Default UseParams is all kinetic parameters
 if isnumeric(opts.UseParams) && (isempty(opts.UseParams) || any(isnan(opts.UseParams)))
@@ -67,6 +56,14 @@ if isnumeric(opts.UseICs) && (isempty(opts.UseICs) || any(isnan(opts.UseICs)))
     end
 end
 
+% Default UseControls is no controls
+if isnumeric(opts.UseControls) && (isempty(opts.UseControls) || any(isnan(opts.UseControls)))
+    opts.UseControls = cell(nCon,nTop);
+    for iTop = 1:nTop
+        opts.UseControls{iTop} = [];
+    end
+end
+
 % Ensure UseParams is vector of logical indexes within a cell array
 nTk = zeros(nTop,1);
 for iTop = 1:nTop
@@ -79,12 +76,32 @@ for iTop = 1:nTop
     [opts.UseICs{iTop} nTx(iTop)] = fixUseICs(opts.UseICs{iTop}, opts.UseModelICs, nx(iTop), nCon);
 end
 
+% Ensure UseControls is a cell array of logical vectors
+% nTq = zeros(nTop,1);
+% for iTop = 1:nTop
+%     opts.UseControls{iTop} = TODO;
+% end
+
 nT = nTk + nTx;
 
-%% Tolerances
-if isnan(opts.RelTol) || isempty(opts.RelTol) 
-    opts.RelTol = 1e-6;
+%% Standardize structures
+% Experimental conditions
+assert((size(con,2) == 1 && (opts.UseModelICs || all(nx == nx(1)))) || size(con,2) == nTop, 'KroneckerBio:TopologyProbability:ConSize', 'Second dimension of input "con" must be equal to numel(m) or 1 if opts.UseModelICs is false or every model has the same number of species')
+if size(con,2) == 1
+    con = repmat(con, 1,nTop);
 end
+con = refreshCon(m, con);
+
+% Objective functions
+assert(size(obj,3) == 1 || size(obj,3) == nTop, 'KroneckerBio:TopologyProbability:ObjSize', 'Third dimension of input "obj" must be equal to numel(m) or 1')
+if size(obj,3) == 1
+    obj = repmat(obj, [1,1,nTop]);
+end
+obj = refreshObj(m, con, obj, opts.UseParams, opts.UseICs, opts.UseControls);
+
+%% Tolerances
+% RelTol
+opts.RelTol = fixRelTol(opts.RelTol);
 
 % Fix AbsTol to be a cell array of vectors appropriate to the problem
 if isnumeric(opts.AbsTol)
@@ -116,6 +133,7 @@ for iTop = 1:nTop
     if ~opts.UseModelICs
         optsTop(iTop).UseICs = optsTop(iTop).UseICs(:,1:nCon);
     end
+    optsTop.UseControls      = opts.UseControls{:,iTop};
     optsTop(iTop).AbsTol     = opts.AbsTol(1:nCon,iTop);
     optsTop(iTop).LowerBound = opts.LowerBound{iTop};
     optsTop(iTop).UpperBound = opts.UpperBound{iTop};
@@ -129,32 +147,55 @@ if opts.NeedFit
     end
 end
 
-%% Active parameters
-T = cell(nTop,1);
+%% Information
+% Compute the information if not provided
+if isempty(F)
+    F = cell(nTop,1);
+    for iTop = 1:nTop
+        F{iTop} = ObjectiveInformation(m(iTop), con(:,iTop), obj(:,:,iTop), optsTop(iTop));
+    end
+end
+
+% Extract eigenvalues
+lambda = cell(nTop,1);
 for iTop = 1:nTop
-    T{iTop} = collectActiveParameters(m(iTon), con(iCon,iTop), opts.UseParams{iTop}, opts.UseICs{iTop}, opts.UseModelICs);
+    % Eigendecompose
+    lambda{iTop} = eig(F{iTop});
+    
+    % Bend flat directions
+    lambda{iTop}(lambda{iTop} < 1e-16) = 1e-16;
 end
 
 %% Compute p_y|m for each topology
-pym = zeros(nTop,1);
+% p_y|m will be computed in log space in order to give more digits to the
+% exponent for computing this number, which is often too small to be
+% represented by float64.
+pym = zeros(nTop,1); % In log space
 pyTm = ones(nTop,1);
-F = cell(nTop,1);
 for iTop = 1:nTop
     if verbose; fprintf(['Computing probability of ' m(iTop).Name '...\n']); end
     % Likelihood
     pyTm(iTop) = ObjectiveProbability(m(iTop), con(:,iTop), obj(:,:,iTop), optsTop(iTop));
     
-    % Information
-    F{iTop} = ObjectiveInformation(m(iTop), con(:,iTop), obj(:,:,iTop), optsTop(iTop));
-    F{iTop} = posdef(F{iTop});
-    
     % Equation for linearization about maximum a posteriori
-    pym(iTop) = pyTm(iTop) * (2*pi).^(nT(iTop)/2) * det(F{iTop}).^(-1/2);
+    %pym(iTop) = pyTm(iTop) * (2*pi).^(nT(iTop)/2) * det(F{iTop}).^(-1/2); % Without log space
+    pym(iTop) = log(pyTm(iTop)) + (nT(iTop)/2) * log(2*pi) + -1/2 * sum(log(lambda{iTop}));
 end
 
 %% Compute p_m|y for the set
 % Apply topology prior
-pmy = pym .* opts.PriorTopology;
+%pmy = pym .* opts.PriorTopology; % Without log space
+pmy = pym + log(opts.PriorTopology); % In log space
+
+% Rescale p_y|m
+% Since the entire distribution is normalized at the end, this operation
+% has no mathematical effect on the answer. However, it ensures that all
+% the probabilities are representable by float64 when numbers are
+% exponentiated back into regular space.
+pmy = pmy - max(pmy);
+
+% Return to regular space
+pmy = exp(pmy);
 
 % Normalize 
 pmy = pmy ./ sum(pmy);

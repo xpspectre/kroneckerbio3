@@ -402,13 +402,13 @@ obj.Update = @update;
         dydT = zeros(n, nT);
         EV = zeros(n,1);
         for i = 1:n
-            ind = find(discreteTimes == times(i), 1, 'first');
+            ind = find(discreteTimes == times(i), 1);
             ix = x(:,ind);
             idxdT = reshape(dxdT(:,ind), nx,nT); %x_T
             iC = sol.C1(outputs(i),:);
             
             % Compute this y
-            y = iC*ix + sol.C2(outputs(i),:)*u(:,ind) + sol.c;
+            y = iC*ix + sol.C2(outputs(i),:)*u(:,ind) + sol.c(outputs(i));
             
             % Compute dy/dT
             dydT(i,:) = iC * idxdT;
@@ -453,13 +453,13 @@ obj.Update = @update;
         dydT = zeros(n, nT);
         EV = zeros(n,1);
         for i = 1:n
-            ind = find(discreteTimes == times(i), 1, 'first');
+            ind = find(discreteTimes == times(i), 1);
             ix = x(:,ind);
             idxdT = reshape(dxdT(:,ind), nx,nT); %x_T
             iC = sol.C1(outputs(i),:);
             
             % Compute this y
-            y = iC*ix + sol.C2(outputs(i),:)*u(:,ind) + sol.c;
+            y = iC*ix + sol.C2(outputs(i),:)*u(:,ind) + sol.c(outputs(i));
             
             % Compute dy/dT
             dydT(i,:) = iC * idxdT;
@@ -489,7 +489,7 @@ obj.Update = @update;
         % functions with the same number of data points) remains correct.
         % p is a direct consequence of chi-square
         
-        chi2 = G([], sol, [], 1);
+        chi2 = G(sol);
         %p = (2*pi)^(-n/2) * det(V)^(-1/2) * exp(-1/2*chi2); % non-centralized
         p = exp(-1/2 * (chi2-n)); % centralized
     end

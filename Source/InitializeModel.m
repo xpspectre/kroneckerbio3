@@ -122,6 +122,12 @@ function m = InitializeModel(name)
 %       .nqu [ whole vector nv ]
 %           The number of input control parameters associated with each
 %           input
+%       .isu [ logical vector nx+nu ]
+%           A compact form of all Species.IsInput
+%       .xInd [ natrual vector nx ]
+%           The index into species of each state
+%       .uInd [ natrual vector nx ]
+%           The index into species of each input
 %       .vxInd [ natural vector nx ]
 %           The indexes to the compartments containing each state species
 %       .vuInd [ natural vector nx ]
@@ -274,12 +280,13 @@ function m = InitializeModel(name)
 %           The partial derivative of drdx wrt k. This is a reshape of
 %           d2rdxdk.
 %       .Ready [ boolean scalar ]
-%           Indicates whether all the mathematical properties of the model (x0, f, S, ...)are
-%           up-to-date with its structural properties (Compartments, Reactions, ...). Anytime the model is
-%           modified by one of the Kronecker model-building functions, this
-%           field is set to false. The model may contain inconsistent or
-%           out-of-date information until FinalizeModel is called, which
-%           refreshes the structure of the model.
+%           Indicates whether all the mathematical properties of the model
+%           (x0, f, S, ...) are up-to-date with its structural properties
+%           (Compartments, Reactions, ...). Anytime the model is modified
+%           by one of the Kronecker model-building functions, this field is
+%           set to false. The model may contain inconsistent or out-of-date
+%           information until FinalizeModel is called, which refreshes the
+%           structure of the model.
 %       .add [ struct scalar ]
 %           Functions that add components to the model put them here until
 %           FinalizeModel is called. Storing them here and processing them
@@ -324,8 +331,11 @@ m.x0 = zeros(0,1);
 m.u  = @(t)(zeros(0,1));
 m.q  = zeros(0,1);
 m.dudq = zeros(0,0);
-
 m.nqu    = zeros(0,1);
+
+m.isu    = false(0,1);
+m.xInd   = zeros(0,1);
+m.uInd   = zeros(0,1);
 m.vxInd  = zeros(0,1);
 m.vuInd  = zeros(0,1);
 m.rOrder = zeros(0,1);

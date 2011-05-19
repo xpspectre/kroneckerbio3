@@ -18,10 +18,13 @@ defaultOpts.AbsTol         = NaN;
 defaultOpts.Verbose        = 0;
 
 opts = mergestruct(defaultOpts, opts);
+verbose = logical(opts.Verbose);
+opts.Verbose = max(opts.Verbose-1,0);
 
 % Constants
 nx = m.nx;
 nCon = numel(con);
+nObj = size(obj,1);
 
 % Add missing fields to structure
 con = pastestruct(Uzero(m), con);
@@ -42,6 +45,7 @@ opts.AbsTol = fixAbsTol(opts.AbsTol, 1, opts.continuous, nx, nCon);
 %% Probability
 % Initialize variables
 p = 1;
+intOpts = opts;
 
 for iCon = 1:nCon
     if verbose; disp(['Integrating system for ' con(iCon).name '...']); end
