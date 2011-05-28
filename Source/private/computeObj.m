@@ -7,7 +7,7 @@ verboseAll = max(verbose-1,0);
 
 % Constants
 nx = m.nx;
-nCon = length(con);
+nCon = numel(con);
 nObj = size(obj,1);
 
 % Initialize variables

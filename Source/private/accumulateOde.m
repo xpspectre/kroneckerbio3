@@ -1,4 +1,4 @@
-function cumSol = accumulateOde(der, jac, t0, tF, ic, u, discontinuities, nonnegative, RelTol, AbsTol, delta, events, tFirstEvent, nEvents, direction, tGet)
+function cumSol = accumulateOde(der, jac, t0, tF, ic, u, discontinuities, nonnegative, RelTol, AbsTol, delta, direction, events, tFirstEvent, nEvents, tGet)
 % function cumSol = accumulateOde(der, jac, t0, tF, ic, u, discontinuities,
 % nonnegative, RelTol, AbsTol, delta, events, tFirstEvent, nEvents, direction, tGet)
 
@@ -11,13 +11,13 @@ function cumSol = accumulateOde(der, jac, t0, tF, ic, u, discontinuities, nonneg
 if nargin < 16
     tGet = [];
     if nargin < 15
-        direction = [];
+        nEvents = [];
         if nargin < 14
-            nEvents = [];
+            tFirstEvent = [];
             if nargin < 13
-                tFirstEvent = [];
+                events = [];
                 if nargin < 12
-                    events = [];
+                    direction = [];
                     if nargin < 11
                         delta = [];
                     end
@@ -87,9 +87,9 @@ end
 % Apply the appropriate delta for the first discontinuities
 if ~isempty(delta)
     if direction == 1
-        ic = ic + direction*delta(discontinuities(1), u);
+        ic = ic + direction*delta(discontinuities(1));
     else%if direction == -1
-        ic = ic + direction*delta(discontinuities(N), u);
+        ic = ic + direction*delta(discontinuities(N));
     end
 end
 
@@ -148,7 +148,7 @@ for k = 1:(N-1)
             end
             if direction == -1
                 % Unique will have sorted tOde the wrong way. Reverse order
-                tOde = tOde(end:1);
+                tOde = tOde(end:-1:1);
             end
         end
         
@@ -193,9 +193,9 @@ for k = 1:(N-1)
         
         % Handle any discrete times or event dependent times
         if ~isempty(delta)
-            ic = simSol.y(:, end).' + direction*delta(simSol.x(end), u);
+            ic = simSol.y(:, end) + direction*delta(simSol.x(end));
         else
-            ic  = simSol.y(:, end).';
+            ic  = simSol.y(:, end);
         end
         
         % Update time interval that remains to be integrated
@@ -256,11 +256,11 @@ end
 % Add on any changes to initial conditions at the final timepoint
 if ~isempty(delta)
     if fullSol
-        cumSol.y(:, end) = cumSol.y(:, end) + direction*delta(cumSol.x(end), u).';
+        cumSol.y(:, end) = cumSol.y(:, end) + direction*delta(cumSol.x(end));
     else
         % Find the final indexes and add to the solution at those points
         finalInds = find(simSol.x(end) == cumSol.x);
-        cumSol.y(:,finalInds) = cumSol.y(:,finalInds) + repmat(direction*delta(simSol.x(end), u).', 1, length(finalInds));
+        cumSol.y(:,finalInds) = cumSol.y(:,finalInds) + repmat(direction*delta(simSol.x(end)), 1, length(finalInds));
     end
 end
 

@@ -66,7 +66,7 @@ con = pastestruct(Uzero(m), con);
 obj = pastestruct(Gzero(m), obj);
 
 % Fix integration type
-[opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(obj);
+[opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(con, obj);
 
 %% Tolerances
 % RelTol

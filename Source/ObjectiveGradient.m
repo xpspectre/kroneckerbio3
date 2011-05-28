@@ -84,7 +84,7 @@ con = pastestruct(Uzero(m), con);
 obj = pastestruct(Gzero(m), obj);
 
 % Fix integration type
-[opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(obj);
+[opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(con, obj);
 
 %% Tolerances
 % RelTol
@@ -93,12 +93,8 @@ opts.RelTol = fixRelTol(opts.RelTol);
 % Fix AbsTol to be a cell array of vectors appropriate to the problem
 opts.AbsTol = fixAbsTol(opts.AbsTol, 2, opts.continuous, nx, nCon, opts.UseAdjoint, opts.UseParams, opts.UseICs, opts.UseModelICs);
 
-%% Run appropriate integration
-if opts.UseAdjoint
-    [unused D] = integrateObjSensAdj(m, con, obj, opts);
-else
-    [unused D] = computeObjSens(m, con, obj, opts);
-end
+%% Run main calculation
+[unused D] = computeObjSens(m, con, obj, opts);
 
 %% Normalization
 if opts.Normalized

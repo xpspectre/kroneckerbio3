@@ -1,4 +1,4 @@
-function absTol = fixAbsTol(absTol, order, integrateObj, nX, nCon, useAdjoint, useParams, useICs, useModelICs, selfSensitivities)
+function absTol = fixAbsTol(absTol, order, integrateObj, nx, nCon, useAdjoint, useParams, useICs, useModelICs, selfSensitivities)
 %FIXABSTOL Standardize the presentation of AbsTol
 %
 %   There are many ways to present the absolute integration tolerance to
@@ -49,14 +49,14 @@ switch order
                 if isscalar(absTol)
                     % Copy the value to all species and conditions
                     for i = 1:nCon
-                        abstol{i} = zeros(nX+integrateObj(i),1) + absTol;
+                        abstol{i} = zeros(nx+integrateObj(i),1) + absTol;
                     end
-                    %absTol = repmat({zeros(nX+integrateObj,1) + absTol}, nCon,1);
+                    %absTol = repmat({zeros(nx+integrateObj,1) + absTol}, nCon,1);
                 else %isvector
                     % Copy the vector. Only if integrateObj is zero allow the
                     % wrong length vector to be supplied.
-                    assert(all(integrateObj == 0) || all(length(absTol) == nX+integrateObj), 'KroneckerBio:AbsTol:InvalidAbsTolLength', 'That is not a valid length for AbsTol')
-                    abstol = repmat({absTol(1:nX+integrateObj)}, nCon,1);
+                    assert(all(integrateObj == 0) || all(numel(absTol) == nx+integrateObj), 'KroneckerBio:AbsTol:InvalidAbsTolLength', 'That is not a valid length for AbsTol')
+                    abstol = repmat({absTol(1:nx+integrateObj)}, nCon,1);
                 end
             end
         else %selfSensitivities
@@ -70,11 +70,13 @@ switch order
                 if useAdjoint
                     if isscalar(absTol)
                         % Copy the value to all species and conditions
-                        abstol = repmat({zeros(nX+1+nX+nT,1) + absTol}, nCon,1);
+                        for i = 1:nCon
+                            abstol{i} = zeros(nx+integrateObj(i)+nx+nT,1) + absTol;
+                        end
                     else %isvector
                         % Copy the vector. Only if integrateObj is zero allow the
                         % wrong length vector to be supplied.
-                        assert(length(absTol) == nX+1+nX+nT, 'KroneckerBio:AbsTol:InvalidAbsTolLength', 'That is not a valid length for AbsTol')
+                        assert(all(numel(absTol) == nx+integrateObj+nx+nT), 'KroneckerBio:AbsTol:InvalidAbsTolLength', 'That is not a valid length for AbsTol')
                         abstol = repmat({absTol}, nCon,1);
                     end
                 else %~useAdjoint
@@ -88,9 +90,9 @@ switch order
                                 % Number of IC parameters may vary across conditions
                                 inT = sum(useICs(:,i)) + nTk;
                             end
-                            abstol{i} = zeros(nX+integrateObj(i)+nX*inT+integrateObj(i)*inT,1) + absTol;
+                            abstol{i} = zeros(nx+integrateObj(i)+nx*inT+integrateObj(i)*inT,1) + absTol;
                         end
-                    elseif numel(absTol) == nX*(nT+1)
+                    elseif numel(absTol) == nx*(nT+1)
                         if any(integrateObj)
                             error('KroneckerBio:AbsTol:VectorWithContinuousObjective', 'Failed to specify AbsTol for continuous objective and gradient')
                         else
@@ -101,19 +103,19 @@ switch order
                                 error('KroneckerBio:AbsTol:VectorWithMultipleVariableExperimentICs', 'A vector cannot be provided for AbsTol if UseModelICs is false and there are variable ICs')
                             end
                         end
-                    elseif numel(absTol) == nX+1+nX*nT+nT
+                    elseif numel(absTol) == nx+1+nx*nT+nT
                         for i = 1:nCon
                             if nCon == 1 || useModelICs || nTx == 0
                                 % Number of parameters is the same across conditions.
-                                abstol{i} = [absTol(1:nX);
-                                    repmat(absTol(nX+1), integrateObj(i),1);
-                                    absTol(nX+1+1:nX+1+nX*nT);
-                                    repmat(absTol(nX+1+nX*nT+1:nX+1+nX*nT+nT), integrateObj(i),1)];
+                                abstol{i} = [absTol(1:nx);
+                                    repmat(absTol(nx+1), integrateObj(i),1);
+                                    absTol(nx+1+1:nx+1+nx*nT);
+                                    repmat(absTol(nx+1+nx*nT+1:nx+1+nx*nT+nT), integrateObj(i),1)];
                             else
                                 error('KroneckerBio:AbsTol:VectorWithMultipleVariableExperimentICs', 'A vector cannot be provided for AbsTol if UseModelICs is false and there are variable ICs')
                             end
                         end
-                    elseif all(numel(absTol) == nX+integrateObj+nX*nT+nT*integrateObj)
+                    elseif all(numel(absTol) == nx+integrateObj+nx*nT+nT*integrateObj)
                         % AbsTol is the correct length for all experiments
                         abstol = repmat({absTol}, nCon,1);
                     else
@@ -136,9 +138,9 @@ switch order
                                 % Number of IC parameters may vary across conditions
                                 inT = sum(useICs(:,i)) + nTk;
                             end
-                            abstol{i} = zeros(nX+integrateObj(i)+nX*inT+integrateObj(i)*inT+nX*nX+nX*inT*nX,1) + absTol;
+                            abstol{i} = zeros(nx+integrateObj(i)+nx*inT+integrateObj(i)*inT+nx*nx+nx*inT*nx,1) + absTol;
                         end
-                    elseif all(numel(absTol) == nX+integrateObj+nX*nT+nT*integrateObj+nX*nX+nX*nT*nX)
+                    elseif all(numel(absTol) == nx+integrateObj+nx*nT+nT*integrateObj+nx*nx+nx*nT*nx)
                         % AbsTol is the correct length for all experiments
                         abstol = repmat({absTol}, nCon,1);
                     else

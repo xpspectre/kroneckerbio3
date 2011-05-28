@@ -128,15 +128,15 @@ end
 %% Distribute options for topology specific functions
 optsTop = repmat(opts, nTop,1);
 for iTop = 1:nTop
-    optsTop(iTop).UseParams  = opts.UseParams{iTop};
-    optsTop(iTop).UseICs     = opts.UseICs{iTop};
+    optsTop(iTop).UseParams   = opts.UseParams{iTop};
+    optsTop(iTop).UseICs      = opts.UseICs{iTop};
     if ~opts.UseModelICs
-        optsTop(iTop).UseICs = optsTop(iTop).UseICs(:,1:nCon);
+        optsTop(iTop).UseICs  = optsTop(iTop).UseICs(:,1:nCon);
     end
-    optsTop.UseControls      = opts.UseControls{:,iTop};
-    optsTop(iTop).AbsTol     = opts.AbsTol(1:nCon,iTop);
-    optsTop(iTop).LowerBound = opts.LowerBound{iTop};
-    optsTop(iTop).UpperBound = opts.UpperBound{iTop};
+    optsTop(iTop).UseControls = opts.UseControls(:,iTop);
+    optsTop(iTop).AbsTol      = opts.AbsTol(1:nCon,iTop);
+    optsTop(iTop).LowerBound  = opts.LowerBound{iTop};
+    optsTop(iTop).UpperBound  = opts.UpperBound{iTop};
 end
 
 %% Fit

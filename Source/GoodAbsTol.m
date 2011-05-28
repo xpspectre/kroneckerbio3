@@ -68,6 +68,9 @@ nCon = numel(con);
 defaultOpts.UseParams               = 1:m.nk;
 defaultOpts.UseICs                  = [];
 defaultOpts.UseControls             = [];%TODO
+defaultOpts.UseAdjoint              = false;
+
+defaultOpts.TolOptim                = 1e-5;
 
 opts = mergestruct(defaultOpts, opts);
 
@@ -93,31 +96,64 @@ xFloor = bsxfun(@rdivide, yFloor, m.C1); % Propogation of floors
 xFloor = min(xFloor, [], 1); % Keep most conservative
 xFloor = vec(xFloor); % Straighten it
 
-% Transfer the floor to species that affect other species
-% Assume that the effect is one-to-one and can travel an infinite distance
-% along the network.
-net = NetworkDistance(m); % Distance between species
-net = spones(net); % Convert to one-to-one mapping
-xGoodRatio = bsxfun(@rdivide, xFloor, net); % Propogation
-xGoodRatio = min(xGoodRatio, [], 1); % Keep most conservative
+% Assume that the effect between species is one-to-one and can travel an
+% infinite distance along the network.
+% net = NetworkDistance(m); % Distance between species
+% net = spones(net); % Convert to one-to-one mapping
+% xGoodRatio = bsxfun(@rdivide, xFloor, net); % Propogation
+xGoodRatio = repmat(min(xFloor, [], 1), nx,1); % Keep most conservative and assign it to all
 xGoodRatio = vec(xGoodRatio); % Straighten it
 
 %% Assemble the vectors for each experiment
-absTolRatio = cell(nCon,1);
-for iCon = 1:nCon
-    % Experiment specific parameters
-    if opts.UseModelICs
-        T = [m.k(opts.UseParams); m.x0(opts.UseICs)]; % model initial conditions
-    else
-        T = [m.k(opts.UseParams); con(iCon).x0(opts.UseICs(:,iCon))]; % con initial conditions
+if ~opts.UseAdjoint
+    absTolRatio = cell(nCon,1);
+    for iCon = 1:nCon
+        % Experiment specific parameters
+        if opts.UseModelICs
+            T = [m.k(opts.UseParams); m.x0(opts.UseICs)]; % model initial conditions
+        else
+            T = [m.k(opts.UseParams); con(iCon).x0(opts.UseICs(:,iCon))]; % con initial conditions
+        end
+        
+        % dxdTGoodRatio
+        % If the model is linear, then the maximum value of dx/dT is x/T. A good
+        % ratio would therefore be x/T
+        dxdTGoodRatio = bsxfun(@rdivide, xGoodRatio, T.'); % x_T
+        dxdTGoodRatio = vec(dxdTGoodRatio); % xT_
+        
+        % Combine into one AbsTol ratio
+        absTolRatio{iCon} = [xGoodRatio; dxdTGoodRatio];
     end
-    
-    % dxdTGoodRatio
-    % If the model is linear, then the maximum value of dx/dT is x/T. A good
-    % ratio would therefore be x/T
-    dxdTGoodRatio = bsxfun(@rdivide, xGoodRatio, T.'); % x_T
-    dxdTGoodRatio = vec(dxdTGoodRatio); % xT_
-    
-    % Combine into one AbsTol ratio
-    absTolRatio{iCon} = [xGoodRatio; dxdTGoodRatio];
+else%UseAdjoint
+    absTolRatio = cell(nCon,1);
+    for iCon = 1:nCon
+        % Experiment specific parameters
+        if opts.UseModelICs
+            UseICsi = opts.UseICs;
+            T = [m.k(opts.UseParams); m.x0(UseICsi)]; % model initial conditions
+        else
+            UseICsi = opts.UseICs(:,iCon);
+            T = [m.k(opts.UseParams); con(iCon).x0(UseICsi)]; % con initial conditions
+        end
+        
+        % D ratio
+        % These elements are not computed in log space so their absolute
+        % value will be inversely proportational to theta. Let the floor we
+        % care about be TolOptim.
+        DGoodRatio = opts.TolOptim ./ T;
+        
+        % lambda ratio
+        % The effect that lambda has on D is through df/dT. Take the most
+        % conservative effect. If the model is linear, then the maximum
+        % value of df/dT is x/T. A good ratio would therefore be x/T
+        dxdTGoodRatio = bsxfun(@rdivide, xGoodRatio, T.'); % x_T
+        effect = bsxfun(@rdivide, DGoodRatio, dxdTGoodRatio.'); % T / T_x
+        lAbsTol = max(effect, [], 1);
+        
+        % Zero entries are for those with no effect
+        lAbsTol(lAbsTol == 0) = inf;
+        
+        % Combine into one AbsTol ratio
+        absTolRatio{iCon} = [xGoodRatio; vec(lAbsTol); DGoodRatio];
+    end
 end

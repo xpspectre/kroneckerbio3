@@ -1,4 +1,4 @@
-function m = symbolic2Kronecker(SymModel, Unames, Ynames, Ymembers, opts)
+function m = symbolic2PseudoKronecker(SymModel, Unames, Ynames, Ymembers, opts)
 %SYMBOLIC2KRONECKER converts a symbolic model into a pseudo-kronecker
 %   model, which interacts with the Kronecker Bio toolbox exactly like a
 %   Kronecker model, but with substantial performance reductions.

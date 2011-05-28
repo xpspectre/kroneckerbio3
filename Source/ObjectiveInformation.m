@@ -104,7 +104,7 @@ con = refreshCon(m, con);
 obj = refreshObj(m, con, obj, {opts.UseParams}, {opts.UseICs}, {opts.UseControls});
 
 % Fix integration type
-[opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(obj);
+[opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(con, obj);
 
 nT = nTx + nTk;
 

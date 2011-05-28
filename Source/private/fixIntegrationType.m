@@ -1,4 +1,4 @@
-function [continuous complex tGet] = fixIntegrationType(obj)
+function [continuous complex tGet] = fixIntegrationType(con, obj)
 %FIXINTEGRATIONTYPE Standardize continuous, complex, and tGet
 %
 %   There are two attributes of objective functions that affect how the
@@ -35,6 +35,10 @@ for iTop = 1:nTop
             discreteTimes = [];
             for iObj = 1:nObj
                 discreteTimes = [discreteTimes; vec(obj(iObj,iCon,iTop).DiscreteTimes)];
+            end
+            if continuous(iCon,iTop)
+                % We need the final point as well
+                discreteTimes = [discreteTimes; con(iCon).tF];
             end
             tGet{iCon,iTop} = unique(discreteTimes);
         end

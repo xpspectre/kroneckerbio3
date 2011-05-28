@@ -18,7 +18,7 @@ if useModelICs
         %bounds = bounds;
     elseif nTx == 0 && l == nk
         bounds = bounds(useParams);
-    elseif isscalar(l)
+    elseif l == 1
         bounds = zeros(nT,1) + bounds;
     else
         error('KroneckerBio:BoundSize', ...
@@ -39,7 +39,7 @@ else
         %bounds = bounds;
     elseif nTx == 0 && l == nk
         bounds = bounds(useParams);
-    elseif isscalar(l)
+    elseif l == 1
         bounds = zeros(nT,1) + bounds;
     else
         error('KroneckerBio:BoundSize', ...

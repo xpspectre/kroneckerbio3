@@ -1,4 +1,11 @@
-function [G, D, abstol] = computeObjSens(m, con, obj, opts)
+function [G, D] = computeObjSens(m, con, obj, opts)
+% Switch to Adjoint method if requested
+if opts.UseAdjoint
+    [G, D] = computeObjSensAdj(m, con, obj, opts);
+    return
+end
+
+% Continue with forward method
 verboseAll = max(opts.Verbose-1,0);
 
 % Constants
@@ -14,7 +21,6 @@ G = 0;
 D = zeros(nT,1);
 Txind = 1; % Stores the position in D where the first x0 parameter goes for each iCon
 intOpts = opts;
-if nargout >= 3; abstol = cell(nCon,1); end
 
 if opts.Verbose; disp('Integrating sensitivities:'); end
 for iCon = 1:nCon
@@ -117,11 +123,11 @@ for iCon = 1:nCon
     end
     
     % Return the adaptive abstol, if requested
-    if nargout >= 3
-        abstol{iCon} = opts.RelTol * abstolObjSimple(m, con(iCon), obj(:,iCon), sol);
-    end
+%     if nargout >= 3
+%         abstol{iCon} = opts.RelTol * abstolObjSimple(m, con(iCon), obj(:,iCon), sol);
+%     end
     
-    if verboseAll; fprintf('iCon = %d\t||dGdT|| = %g\tTime = %0.2f\n', iCon, norm(contD + discD), toc); end
+    if verboseAll; fprintf('iCon = %d\t|dGdT| = %g\tTime = %0.2f\n', iCon, norm(contD + discD), toc); end
 end
 
-if opts.Verbose;fprintf('Summary: ||dGdp|| = %g\n', norm(D));end
+if opts.Verbose;fprintf('Summary: |dGdp| = %g\n', norm(D));end

@@ -76,10 +76,6 @@ function [m, con, G, D] = FitObjective(m, con, obj, opts)
 %           The objective tolerance. The optimization stops when it is
 %           predicted that the objective function cannot be improved more
 %           than this in the next iteration.
-%     	.AdaptAbsTol [ logical scalar {false} ]
-%           Indicates if the absolute tolerance should adaptively optimize
-%           in order to most efficiently compute the objective and
-%           gradient.
 %     	.Restart [ nonnegative integer scalar {0} ]
 %           A scalar integer determining how many times the optimzation
 %           should restart once optimization has stopped.
@@ -222,7 +218,7 @@ con = pastestruct(Uzero(m), con);
 obj = pastestruct(Gzero(m), obj);
 
 %% Integration type: simple, continuous, complex, or both
-[opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(obj);
+[opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(con, obj);
 
 %% Tolerances
 % RelTol
@@ -419,15 +415,7 @@ end
         
         % Integrate sensitivities or use adjoint to get objective gradient
         if nargout == 2
-            if opts.UseAdjoint
-                [G, D] = integrateObjSensAdj(m, con, obj, intOpts);
-            else
-                if opts.AdaptAbsTol
-                    [G, D, intOpts.AbsTol] = computeObjSens(m, con, obj, intOpts);
-                else
-                    [G, D] = computeObjSens(m, con, obj, intOpts);
-                end
-            end
+            [G, D] = computeObjSens(m, con, obj, intOpts);
             
             % Normalize gradient
             if opts.Normalized
