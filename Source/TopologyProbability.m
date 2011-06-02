@@ -105,11 +105,15 @@ opts.RelTol = fixRelTol(opts.RelTol);
 
 % Fix AbsTol to be a cell array of vectors appropriate to the problem
 if isnumeric(opts.AbsTol)
-    opts.AbsTol = repmat(vec(opts.AbsTol), 1,nTop);
+    opts.AbsTol = repmat({vec(opts.AbsTol)}, 1,nTop);
 end
-tempAbsTol = cell(nCon,nTop);
+if isstruct(opts.AbsTol)
+    opts.AbsTol = vec(opts.AbsTol).';
+end
+tempAbsTol = cell(nTop,1);
 for iTop = 1:nTop
-    tempAbsTol(:,iTop) = fixAbsTol(opts.AbsTol(:,iTop), 2, false(nCon,1), nx(iTop), nCon, opts.UseAdjoint, opts.UseParams{iTop}, opts.UseICs{iTop}, opts.UseModelICs);
+    % Distribute AbsTol because TopologyProbability never uses it directly
+    tempAbsTol{iTop} = opts.AbsTol(:,iTop);
 end
 opts.AbsTol = tempAbsTol;
 
@@ -134,7 +138,7 @@ for iTop = 1:nTop
         optsTop(iTop).UseICs  = optsTop(iTop).UseICs(:,1:nCon);
     end
     optsTop(iTop).UseControls = opts.UseControls(:,iTop);
-    optsTop(iTop).AbsTol      = opts.AbsTol(1:nCon,iTop);
+    optsTop(iTop).AbsTol      = opts.AbsTol{iTop};
     optsTop(iTop).LowerBound  = opts.LowerBound{iTop};
     optsTop(iTop).UpperBound  = opts.UpperBound{iTop};
 end

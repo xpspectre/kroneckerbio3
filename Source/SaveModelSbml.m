@@ -4,9 +4,6 @@ function mSimbio = SaveModelSbml(m, file)
 % New model
 mSimbio = sbiomodel(m.Name);
 
-% Constants
-isu = cat(1, m.Species.IsInput);
-
 %% Add Compartments
 vIsConstant = true(m.nv,1);
 for iv = 1:m.nv
@@ -29,9 +26,8 @@ end
 %% Add Compartment Rules
 % Combine B1 and B2 for easier species indexing
 B = zeros(m.nv,numel(m.Species));
-isu = cat(1, m.Species.IsInput);
-B(:,~isu) = m.B1;
-B(:,isu)  = m.B2;
+B(:,~m.isu) = m.B1;
+B(:,m.isu)  = m.B2;
 
 for iv = 1:find(~vIsConstant')
     v = m.Compartments(iv);
@@ -157,6 +153,8 @@ end
 %% Add Reactions
 for ir = 1:n.nr
     r = m.Reactions(ir);
+    
+    mSimbio.addreaction(r.Reactants, r.Products);
 end
 
 %% Save SimBiology model to file

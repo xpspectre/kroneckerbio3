@@ -1,4 +1,29 @@
 function m = AddState(m, name, compartment, initialValue, units)
+%AddState Add a state species to a KroneckerBio model
+%
+%   m = AddState(m, name, compartment, initialValue, units)
+%
+%   Inputs
+%   m: [ model struct scalar ]
+%       The model to which the state will be added
+%   name: [ string ]
+%       A name for the state. This is the name by which reactions will
+%       refer to it.
+%   compartment: [ string ]
+%       The name of the compartment it will be added
+%   initialValue: [ nonnegative scalar {0} ]
+%       Optional
+%       This is the initial value of the state.
+%   units: [ '' ]
+%       This is currently not implemented. The canonical representaion of
+%       species values is in amount.
+%
+%   Outputs
+%   m: [ model struct scalar ]
+%       The model with the new state added.
+
+% (c) 2011 David R Hagen & Bruce Tidor
+% This work is released under the MIT license.
 
 % Clean-up inputs
 if nargin < 5

@@ -84,7 +84,7 @@ for iCon = 1:nCon
         dx0dx0 = speye(nx,nx);
         curD(nTk+1:nT) = dx0dx0(opts.UseICs,:) * lambda;
     else
-        lambda = sol.y(1:nx,end).';
+        lambda = sol.y(1:nx,end);
         dx0dx0 = speye(nx,nx);
         curD(nTk+1:nT) = dx0dx0(opts.UseICs(:,iCon),:) * lambda;
     end
