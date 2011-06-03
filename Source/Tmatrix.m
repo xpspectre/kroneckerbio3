@@ -2,7 +2,7 @@ function T = Tmatrix(si)
 
 [ro co] = deal(si(1), si(2));
 
-T=zeros(ro*co,co*ro);
+T=sparse(ro*co,co*ro);
 
 
 ind=[1:ro:ro*co]';
