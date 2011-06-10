@@ -54,7 +54,7 @@ function con = Uzero(m)
 
 % Special case of numeric inputs
 if isnumeric(m)
-    con = emptystruct(m, 'Type', 'Name', 'tF', 'x0', 'u', 'q', 'dudq', 'nq', 'nqu', 'SteadyState', 'Periodic', 'Discontinuities', 'Update');
+    con = emptystruct(m, 'Type', 'Name', 'tF', 'x0', 'u', 'q', 'dudq', 'nq', 'SteadyState', 'Periodic', 'Discontinuities', 'Update');
     return
 end
 
@@ -77,7 +77,6 @@ con.u  = @(t)zeros(nu,1);
 con.q  = zeros(0,1);
 con.dudq = @(t)zeros(nu,0);
 con.nq = 0;
-con.nqu = zeros(m.nu,1);
 con.SteadyState = false;
 con.Periodic = false;
 con.Discontinuities = zeros(0,1);

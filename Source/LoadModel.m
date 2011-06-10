@@ -27,10 +27,10 @@ if ischar(files)
     files = {files};
 end
 
-if all(files{1}(end-3:end) == '.txt')
+if strcmp(files{1}(end-3:end), '.txt')
     % Kronecker mass action model
     m = LoadModelMassAction(files);
-elseif all(files{1}(end-3:end) == '.xml')
+elseif strcmp(files{1}(end-3:end), '.xml') || strcmp(files{1}(end-4:end), '.sbml') && numel(files) == 1
     % SBML model
     try
         m = LoadModelSbmlMassAction(files{1});

@@ -79,7 +79,7 @@ nCon = numel(con);
 % Ensure UseICs is a matrix of linear indexes
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 
-% Add missing fields to structure
+% Standardize structures
 con = pastestruct(Uzero(m), con);
 obj = pastestruct(Gzero(m), obj);
 

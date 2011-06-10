@@ -179,8 +179,8 @@ vNicestrs = cell(nv,1);
 %names being used by the model. This code checks if a potential name (i.e.
 %"co1x" already exists. If it does, the code simply skips that number and
 %tries the next one until it finds an unused name. Note that the "x" on the
-%end of the variable names prevents string replace from seeing "species1"
-%in "species10".
+%end of the variable names prevents string replace from seeing "sp1"
+%in "sp10".
 
 CurrentAttempt = 1; %The numerical appendix that will be tried
 CurrentCompartment = 1; %Index through the compartments
@@ -340,7 +340,6 @@ end
 
 if opts.Verbose; fprintf('done.\n'); end
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Part 3: Building the Diff Eqs %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -395,15 +394,83 @@ for i = 1:nr %Foreach reaction
     end
 end
 
-%% Process reaction rates so that they are differentiable
+%% Assemble rules expressions
+rules = SimbioModel.Rules;
+nRules = numel(rules);
+
+% Initialize empty symbolic vector
+targetStrs = cell(nRules,1);
+valueStrs  = cell(nRules,1);
+
+for iRule = 1:nRules
+    rule = rules(iRule);
+    
+    if strcmp(rule.RuleType, 'repeatedAssignment')
+        % Split string rule into target and value
+        splits = regexp(rule.Rule, '=', 'split');
+        assert(numel(splits) == 2, 'KroneckerBio:simbio2Symbolic:InvalidRepeatedAssignment', 'Rule %i had an unparsible repeated assignment rule', iRule)
+        targetStrs{iRule} = splits{1};
+        valueStrs{iRule}  = splits{2};
+    else
+        error('KroneckerBio:simbio2Symbolic:UnsupportedRuleType', 'Kronecker only supports repeatedAssignment rules, rule %i has type %s', iRule, rule.RuleType)
+    end
+end
+
+%% Convert reactions and rules to symbolics
 %Delete compartment prefixes "co1x."
 for i = 1:nv
     %'.' is a special character in regexprep, use '\.' to really mean '.'
     rStrs = regexprep(rStrs, [vNicestrs{i} '\.'], '');
 end
 
-%Create symbolic rate variable
-rSyms = sym(rStrs);
+% Replace string variables with symbolics
+for iv = 1:nv
+    rStrs = regexprep(rStrs, vNicestrs{iv}, ['sym(''' vNicestrs{iv} ''')']);
+    valueStrs = regexprep(valueStrs, vNicestrs{iv}, ['sym(''' vNicestrs{iv} ''')']);
+end
+for ix = 1:nx
+    rStrs = regexprep(rStrs, xNicestrs{ix}, ['sym(''' xNicestrs{ix} ''')']);
+    valueStrs = regexprep(valueStrs, xNicestrs{ix}, ['sym(''' xNicestrs{ix} ''')']);
+end
+for ik = 1:nk
+    rStrs = regexprep(rStrs, kNicestrs{ik}, ['sym(''' kNicestrs{ik} ''')']);
+    valueStrs = regexprep(valueStrs, kNicestrs{ik}, ['sym(''' kNicestrs{ik} ''')']);
+end
+for iRule = 1:nRules
+    rStrs = regexprep(rStrs, targetStrs{iRule}, ['sym(''' targetStrs{iRule} ''')']);
+    valueStrs = regexprep(valueStrs, targetStrs{iRule}, ['sym(''' targetStrs{iRule} ''')']);
+end
+
+%Create symbolic reaction rates
+rSyms = repmat(sym('empty'), nr,1);
+for ir = 1:nr
+    rSyms(ir) = eval(rStrs{ir});
+end
+
+%Create symbolic rules
+targetSyms = repmat(sym('empty'), nRules,1);
+valueSyms  = repmat(sym('empty'), nRules,1);
+for iRule = 1:nRules
+    targetSyms(iRule)  = sym(targetStrs{iRule});
+    valueSyms(iRule) = eval(valueStrs{iRule});
+end
+
+%% Replace reaction rates with symbolics
+% This may require up to nRules iterations of substitution
+for iRule = 1:nRules
+    rSyms = subs(rSyms, targetSyms, valueSyms, 0);
+end
+
+% Delete rule parameters
+found = lookup(targetSyms, kSyms);
+kSyms(found(found ~= 0)) = [];
+kNames(found(found ~= 0)) = [];
+k(found(found ~= 0)) = [];
+nk = numel(kSyms);
+
+% Convert all rule species to inputs
+found = lookup(targetSyms, xuSyms);
+isu(found(found ~= 0)) = true;
 
 %% Generate the ode of the model
 %Odes of the model for all variables
@@ -426,7 +493,7 @@ SymModel.nr         = nr;
 
 SymModel.vSyms      = vSyms;
 SymModel.vNames     = vNames;
-SymModel.d          = zeros(nv,1) + 3; % TODO: from units
+SymModel.dv         = zeros(nv,1) + 3; % TODO: from units
 SymModel.vValues    = vValues;
 
 SymModel.xuSyms     = xuSyms;    %sym nxx1
@@ -440,7 +507,7 @@ SymModel.kNames     = kNames;   %cell nkx1
 SymModel.k          = k;        %num nxx1
 
 SymModel.rNames     = rNames;
-SymModel.rSyms      = rSyms;    %sym nrx1
+SymModel.r          = rSyms;    %sym nrx1
 SymModel.S          = S;        %num nxxnr
 
 SymModel.f          = f;        %sym nxx1

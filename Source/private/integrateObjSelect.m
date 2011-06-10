@@ -10,14 +10,17 @@ nObj = numel(obj);
 % Construct system
 [der, jac, events] = constructSystem();
 
-%TODO: allow for starting from steady-state
 %TODO: events
 
 % Initial conditions
-if opts.UseModelICs
-    ic = [m.x0; 0];
+if ~con.SteadyState
+    if opts.UseModelICs
+        ic = [m.x0; 0];
+    else
+        ic = [con.x0; 0];
+    end
 else
-    ic = [con.x0; 0];
+    ic = [steadystateSys(m, con, opts); 0];
 end
 
 % Input

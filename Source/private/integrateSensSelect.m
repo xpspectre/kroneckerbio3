@@ -9,13 +9,25 @@ nT  = nTk + nTx;
 % Construct system
 [der, jac] = constructSystem();
 
-%TODO: allow for starting from steady-state
-
-% Initial conditions [x0; vec(dxdT0)]
-if opts.UseModelICs
-    x0 = m.x0;
+if ~con.SteadyState
+    % Initial conditions [x0; vec(dxdT0)]
+    if opts.UseModelICs
+        x0 = m.x0;
+    else
+        x0 = con.x0;
+    end
+    % Initial effect of rates on sensitivities is 0
+    dxdT0 = zeros(nx, nTk); % Active rate parameters
+    
+    % Initial effect of ics on sensitivities is 1 for that state
+    dxdx0                = zeros(nx,nTx);
+    dxdx0(opts.UseICs,:) = eye(nTx);
+    
+    % Combine them into a vector
+    ic = [x0; vec([dxdT0, dxdx0])];
 else
-    x0 = con.x0;
+    % Run to steady-state first
+    ic = steadystateSens(m, con, opts);
 end
 
 % Input
@@ -25,18 +37,8 @@ else
     u = con.u;
 end
 
-% Initial effect of rates on sensitivities is 0
-dxdT0 = zeros(nx, nTk); % Active rate parameters
-
-% Initial effect of ics on sensitivities is 1 for that state
-dxdx0                = zeros(nx,nTx);
-dxdx0(opts.UseICs,:) = eye(nTx);
-
-% Combine them into a vector
-ic = [x0; vec([dxdT0, dxdx0])];
-
-% Integrate [x; G; dxdT; dGdv] with respect to time
-sol = accumulateOde(der, jac, 0, con.tF, ic, u, con.Discontinuities, 1:nx, opts.RelTol, opts.AbsTol(1:nx+nx*nT), [], [], [], [], [], tGet);
+% Integrate [x; dxdT] with respect to time
+sol = accumulateOde(der, jac, 0, con.tF, ic, u, con.Discontinuities, 1:nx, opts.RelTol, opts.AbsTol(1:nx+nx*nT), [], 1, [], [], [], tGet);
 sol.u = u(tGet);
 sol.C1 = m.C1;
 sol.C2 = m.C2;
@@ -88,8 +90,8 @@ sol.c  = m.c;
             d2xdxdT = spermute132(d2xdxdT, [nx,nx,nT], [nx*nT,nx]);
             
             % Combine
-            val = [dfdx(t, x, u), sparse(nx,nx*nT);
-                         d2xdxdT, kron(IT, dfdx(t,x,u))];
+            val = [dfdx(t,x,u), sparse(nx,nx*nT);
+                       d2xdxdT, kron(IT, dfdx(t,x,u))];
         end
         
         % Modifies dfdk to relate only to the parameters of interest

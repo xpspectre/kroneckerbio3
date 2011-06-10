@@ -1,6 +1,6 @@
 function cumSol = accumulateOde(der, jac, t0, tF, ic, u, discontinuities, nonnegative, RelTol, AbsTol, delta, direction, events, tFirstEvent, nEvents, tGet)
 % function cumSol = accumulateOde(der, jac, t0, tF, ic, u, discontinuities,
-% nonnegative, RelTol, AbsTol, delta, events, tFirstEvent, nEvents, direction, tGet)
+% nonnegative, RelTol, AbsTol, delta, direction, events, tFirstEvent, nEvents, tGet)
 
 % All discontinuities must be equal to their right limit
 % All events must be terminal
@@ -163,10 +163,10 @@ for k = 1:(N-1)
                 simSol.x = simx';
                 simSol.y = simy';
             else
-                [simx simy simte simye simie] = ode15sf(der, tOde, ic, simOpts, u);
+                [simx simy simxe simye simie] = ode15sf(der, tOde, ic, simOpts, u);
                 simSol.x = simx';
                 simSol.y = simy';
-                simSol.te = simte';
+                simSol.xe = simxe';
                 simSol.ye = simye';
                 simSol.ie = simie';
             end
@@ -174,6 +174,7 @@ for k = 1:(N-1)
         
         % Check if integration failed when it shouldn't have
         if isempty(events) && simSol.x(end) ~= tInt(2)
+            try evalin('caller', 'save(''odefail.mat'',''m'',''con'')'); end
             error('KroneckerBio:accumulateSol:IntegrationFailure', 'Did not integrate through entire interval!');
         end
         

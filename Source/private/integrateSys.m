@@ -6,13 +6,15 @@ nx = m.nx;
 % Construct system
 [der, jac] = constructSystem();
 
-%TODO: allow for starting from steady-state
-
 % Initial conditions
-if opts.UseModelICs
-    ic = m.x0;
+if ~con.SteadyState
+    if opts.UseModelICs
+        ic = m.x0;
+    else
+        ic = con.x0;
+    end
 else
-    ic = con.x0;
+    ic = steadystateSys(m, con, opts);
 end
 
 % Input

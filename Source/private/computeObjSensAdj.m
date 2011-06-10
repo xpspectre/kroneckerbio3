@@ -15,16 +15,33 @@ G = 0;
 D = zeros(nT,1);
 intOpts = opts;
 
-if opts.Verbose; disp('Integrating adjoint:'); end
+if opts.Verbose; disp('Integrating adjoint...'); end
 for iCon = 1:nCon
     if verboseAll; tic; end
     
-    % * Integrate system *
     % Modify opts structure
     intOpts.AbsTol = opts.AbsTol{iCon};
     intOpts.ObjWeights = opts.ObjWeights(:,iCon);
+
+    % * Integrate to steady-state
+    if con(iCon).SteadyState
+        ss = true;
+        ssSol = integrateSteadystateSys(m, con, intOpts);
+        
+        % Apply steady-state solution to initial conditions
+        if opts.UseModelICs
+            m = m.Update(m.k, ssSol.y(:,end), m.q);
+        else
+            con(iCon) = con(iCon).Update(ssSol.y(:,end), con(iCon).q);
+        end
+        
+        % Don't do it again
+        con(iCon).SteadyState = false;
+    else
+        ss = false;
+    end
     
-    % Integrate
+    % * Integrate system *
     % Do not use select methods since the solution is needed at all time
     if opts.continuous(iCon)
         xSol = integrateObj(m, con(iCon), obj(:,iCon), intOpts);
@@ -70,6 +87,18 @@ for iCon = 1:nCon
     
     % Integrate [lambda; D] backward in time
     sol = accumulateOde(der, jac, 0, con(iCon).tF, ic, u, [con(iCon).Discontinuities; discreteTimes], [], opts.RelTol, opts.AbsTol{iCon}(nx+opts.continuous(iCon)+1:nx+opts.continuous(iCon)+nx+nT), del, -1, [], [], [], 0);
+    
+    % * Complete steady-state *
+    if ss
+        % * Start Adjoint again *
+        [der, jac] = constructSteadystateSystem();
+        
+        % Set initial conditions starting from end of previous run
+        ic = sol.y;
+        
+        % Integrate [lambda; D] backward in time and replace previous run
+        sol = accumulateOde(der, jac, 0, ssSol.x(end), ic, u, [], [], opts.RelTol, opts.AbsTol{iCon}(nx+opts.continuous(iCon)+1:nx+opts.continuous(iCon)+nx+nT), [], -1, [], [], [], 0);
+    end
     
     % *Add contributions to derivative*
     % (Subtract contribution because gradient was integrated backward)
@@ -158,4 +187,35 @@ if opts.Verbose; fprintf('Summary: |dGdp| = %g\n', norm(D)); end
         end
     end
 
+    function [der, jac] = constructSteadystateSystem()
+        dfdx = m.dfdx;
+        dfdT = @dfdTSub;
+        
+        der = @derivative;
+        jac = @jacobian;
+        
+        % Derivative of [lambda; D] with respect to time
+        function val = derivative(t, joint, u)
+            u = u(-1);
+            x = deval(ssSol, t, 1:nx);
+            l = joint(1:nx);
+            
+            val = -[dfdx(-1,x,u).'; dfdT(-1,x,u).'] * l;
+        end
+        
+        % Jacobian of [lambda; D] derivative
+        function val = jacobian(t, joint, u)
+            u = u(-1);
+            x = deval(ssSol, t, 1:nx);
+            
+            val = [-dfdx(-1, x, u).', sparse(nx, nT);
+                   -dfdT(-1, x, u).', sparse(nT, nT)];
+        end
+        
+        % Modifies dfdk to relate only to the parameters of interest
+        function val = dfdTSub(t, x, u)
+            val = m.dfdk(-1, x, u);
+            val = val(:,opts.UseParams);
+        end
+    end
 end

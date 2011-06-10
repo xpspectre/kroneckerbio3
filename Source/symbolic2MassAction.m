@@ -8,7 +8,7 @@ name       = SymModel.Name;
 
 vSyms     = SymModel.vSyms;
 vNames    = SymModel.vNames;
-d         = SymModel.d;
+dv        = SymModel.d;
 vValues   = SymModel.vValues;
 
 xuSyms    = SymModel.xuSyms;
@@ -22,7 +22,7 @@ kNames    = SymModel.kNames;
 k         = SymModel.k;
 
 rNames    = SymModel.rNames;
-rSyms     = SymModel.rSyms;
+rSyms     = SymModel.r;
 S         = SymModel.S;
 
 %% Basic constants
@@ -43,7 +43,7 @@ m = InitializeModel(name);
 
 %% Loop over compartments
 for iv = 1:nv
-    m = AddCompartment(m, vNames{iv}, d(iv), '', vValues(iv));
+    m = AddCompartment(m, vNames{iv}, dv(iv), '', vValues(iv));
 end
 
 %% Loop over species

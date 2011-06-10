@@ -6,13 +6,15 @@ nx = m.nx;
 % Construct system
 [der, jac] = constructSystem();
 
-%TODO: allow for starting from steady-state
-
 % Initial conditions
-if opts.UseModelICs
-    ic = m.x0;
+if ~con.SteadyState
+    if opts.UseModelICs
+        ic = m.x0;
+    else
+        ic = con.x0;
+    end
 else
-    ic = con.x0;
+    ic = steadystateSys(m, con, opts);
 end
 
 % Input
@@ -23,7 +25,7 @@ else
 end
 
 % Integrate x over time
-sol = accumulateOde(der, jac, 0, con.tF, ic, u, con.Discontinuities, 1:nx, opts.RelTol, opts.AbsTol(1:nx), [], [], [], [], [], tGet);
+sol = accumulateOde(der, jac, 0, con.tF, ic, u, con.Discontinuities, 1:nx, opts.RelTol, opts.AbsTol(1:nx), [], 1, [], [], [], tGet);
 sol.u = u(tGet);
 sol.C1 = m.C1;
 sol.C2 = m.C2;

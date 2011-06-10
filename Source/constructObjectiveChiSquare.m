@@ -1,5 +1,6 @@
 function obj = constructObjectiveChiSquare(m, outputs, times, sd, nonNegMeasurements, measurements, perfect)
-%obj = constructObjectiveChiSquare(m, outputs, times, sd, measurements)
+%obj = constructObjectiveChiSquare(m, outputs, times, sd,
+%nonNegMeasurements, measurements, perfect)
 %returns X2, chi-square, the generalized least squares statistic
 
 % sd: @(t,yInd,yVal) returns standard error given t, index of output, and

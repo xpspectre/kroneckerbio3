@@ -1,4 +1,36 @@
 function con = ExperimentBasic(m, tF, x0, u, discontinuities, name)
+%Experiment constructs a KroneckerBio experimental conditions structure
+%   taking advantage of the full potential of experimental conditions
+%
+%   con = Experiment(m, tF, x0, steadyState, periodic, u, discontinuities,
+%                    q, dudq, name)
+%
+%   The inputs to this function allow one to set all the variables that are
+%   permitted on a KroneckerBio experimental conditions structure.
+%
+%   Inputs
+%   m: [ model struct scalar ]
+%       The KroneckerBio model these experiments will be run for
+%   tF: [ nonnegative scalar ]
+%       The time at which this experiment ends.
+%   x0: [ nonnegative vector nx {m.x0} ]
+%       The values of the initial conditions of each state species
+%   u: [ handle @(t) returns nonnegative matrix nu by numel(t) | 
+%       nonnegative vector nu {m.u} ]
+%       A function handle that returns the value of the inputs at any time
+%       t. This function should accept t as a vector.
+%   discontinuities: [ nonnegative vector ]
+%       Any discontinuous times in the u function must be listed here
+%       in order to ensure sucessful integration of the system.
+%   name: [ string {''} ]
+%       An arbitrary name for the experiment
+%
+%   Outputs
+%   con: [ experiment struct scalar ]
+%       The KroneckerBio experimental conditions structure
+
+% (c) 2011 David R Hagen & Bruce Tidor
+% This work is released under the MIT license.
 
 % Sanitize inputs
 if nargin < 5
@@ -67,7 +99,6 @@ con.u  = u;
 con.q  = zeros(0,1);
 con.dudq = @(t)zeros(m.nu,0);
 con.nq = 0;
-con.nqu = zeros(m.nu,1);
 con.SteadyState = false;
 con.Periodic = false;
 con.Discontinuities = discontinuities;

@@ -10,8 +10,31 @@ nObj = numel(obj);
 % Construct system
 [der, jac, events] = constructSystem();
 
-%TODO: allow for starting from steady-state
 %TODO: events
+
+if ~con.SteadyState
+    % Initial conditions [x0; G0; vec(dxdT0); vec(dGdv0)]
+    if opts.UseModelICs
+        x0 = m.x0;
+    else
+        x0 = con.x0;
+    end
+    % Initial effect of rates on sensitivities is 0
+    dxdT0 = zeros(nx, nTk); % Active rate parameters
+    
+    % Initial effect of ics on sensitivities is 1 for that state
+    dxdx0                = zeros(nx,nTx);
+    dxdx0(opts.UseICs,:) = eye(nTx);
+    
+    % Combine them into a vector
+    ic = [x0; 0; vec([dxdT0, dxdx0]); zeros(nT,1)];
+else
+    % Run to steady-state first
+    ic = steadystateSens(m, con, opts);
+    
+    % Include objective and gradient
+    ic = [ic(1:nx); 0; ic(nx+1:nx+1+nx*nT); zeros(nT,1)];
+end
 
 % Input
 if opts.UseModelInputs
@@ -19,23 +42,6 @@ if opts.UseModelInputs
 else
     u = con.u;
 end
-
-% Initial conditions [x0; G0; vec(dxdT0); vec(dGdv0)]
-if opts.UseModelICs
-    x0 = m.x0;
-else
-    x0 = con.x0;
-end
-
-% Initial effect of rates on sensitivities is 0
-dxdp0 = zeros(nx, nTk); % Active rate parameters
-
-% Initial effect of ics on sensitivities is 1 for that species
-dxdx0                = zeros(nx,nTx);
-dxdx0(opts.UseICs,:) = eye(nTx);
-
-% Combine them into a vector
-ic = [x0; 0; vec([dxdp0, dxdx0]); zeros(nT,1)];
 
 % Integrate [x; G; dxdT; dGdv] with respect to time
 sol = accumulateOde(der, jac, 0, con.tF, ic, u, con.Discontinuities, 1:nx, opts.RelTol, opts.AbsTol(1:nx+nx*nT), [], [], [], [], [], tGet);

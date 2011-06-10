@@ -1,4 +1,4 @@
-function absTol = fixAbsTol(absTol, order, integrateObj, nx, nCon, useAdjoint, useParams, useICs, useModelICs, selfSensitivities)
+function abstol = fixAbsTol(absTol, order, integrateObj, nx, nCon, useAdjoint, useParams, useICs, useModelICs, selfSensitivities)
 %FIXABSTOL Standardize the presentation of AbsTol
 %
 %   There are many ways to present the absolute integration tolerance to
@@ -120,6 +120,11 @@ switch order
                 elseif numel(absTol{i}) == nx+integrateObj(i)
                     % AbsTol is the correct length
                     abstol = repmat({absTol(1:nx+integrateObj)}, nCon,1);
+                elseif numel(absTol{i}) >= nx
+                    % AbsTol is not provided for continuous objective,
+                    % better hope it's not needed
+                    assert(~integrateObj(i), 'KroneckerBio:AbsTol:VectorWithContinuousObjective', 'Failed to specify AbsTol for continuous objective')
+                    abstol{i} = absTol{i}(1:nx);
                 else
                     error('KroneckerBio:AbsTol:InvalidAbsTolLength', 'That is not a valid length for AbsTol')
                 end
@@ -281,8 +286,4 @@ switch order
         error('An unsupported order was passed to fixAbsTol.')
     otherwise
         error('An unsupported order was passed to fixAbsTol.')
-end
-
-if ~iscell(absTol) % As of now, no changes are make to a cellular absTol
-    absTol = abstol;
 end
