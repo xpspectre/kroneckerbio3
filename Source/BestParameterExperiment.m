@@ -1,4 +1,4 @@
-function [bestCons data] = BestParameterExperiment(m, con, obj, posCon, posObj, goal, opts, H, EHs)
+function [bestCons data] = BestParameterExperiment(m, con, obj, posCon, posObj, goal, opts, F, EFs)
 %BESTPARAMETEREXPERIMENT Determine which experiments will most efficiently
 %   minimize a goal function of the fisher information matrix (FIM) of the
 %   objective function. Traditionally, this algorithm is used to minimize
@@ -27,7 +27,7 @@ function [bestCons data] = BestParameterExperiment(m, con, obj, posCon, posObj, 
 %       posObj - A vector of objective functions corresponding to the
 %                measurement techique that will be applied under the
 %                possible experimental conditions
-%       goal   - A function handle @(H) that returns a scalar evaluation of
+%       goal   - A function handle @(F) that returns a scalar evaluation of
 %                a hessian. This function chooses the best experiments
 %                based on which set has the lowest goal function.
 %       opts - Optional function options
@@ -76,9 +76,9 @@ function [bestCons data] = BestParameterExperiment(m, con, obj, posCon, posObj, 
 % Clean up inputs
 assert(nargin >= 6, 'KroneckerBio:BestParameterExperiment:AtLeastSixInputs', 'FindBestExperiment requies at least 6 input arguments.')
 if nargin < 9
-    EHs = [];
+    EFs = [];
     if nargin < 8
-        H = [];
+        F = [];
         if nargin < 7
             opts = [];
         end
@@ -86,7 +86,7 @@ if nargin < 9
 end
 
 % Options
-defaultOpts.UseParams           = 1:m.nP;
+defaultOpts.UseParams           = 1:m.nk;
 defaultOpts.UseICs              = [];
 defaultOpts.UseModelICs         = true;
 defaultOpts.ReturnCount         = 1;        % Number of experiments to return
@@ -97,51 +97,50 @@ defaultOpts.Verbose             = false;
 
 opts = mergestruct(defaultOpts, opts);
 
+verbose = logical(opts.Verbose);
+opts.Verbose = max(opts.Verbose-1,0);
+
 % Constants
-nPK = length(opts.UseParams);
-nPX = length(opts.UseICs);
-nP = nPK + nPX;
-nCon = length(con);
 nPos = numel(posObj);
 blockSize = min(opts.MaxGreedySize, opts.ReturnCount);  % The number of experiments over which to maximize cannot be greater than the number of experiments to be returned
 maxSearchSize = nchoosek(nPos, blockSize);
 nIterations = ceil(opts.ReturnCount / blockSize);
 
 %% Compute old hessian
-if isempty(H)
-    H = ObjectiveInformation(m, con, obj, opts);
+if isempty(F)
+    F = ObjectiveInformation(m, con, obj, opts);
 end
 
 %% Fetch expected hessians
-if isempty(EHs)
-    [unused EHs] = ObjectiveInformation(m, posCon, posObj, opts);
+if isempty(EFs)
+    [unused EFs] = ObjectiveInformation(m, posCon, posObj, opts);
 end
 
 %% Find best experiment
-if opts.Verbose; fprintf('Combining information to find best experiment...\n'); end
+if verbose; fprintf('Combining information to find best experiment...\n'); end
     
 bestCons = zeros(opts.ReturnCount, 1);
-bestGoal = goal(H);
+bestGoal = goal(F);
 
-if opts.Verbose
+if verbose
     fprintf('Starting goal is %d\n', bestGoal)
 end
 
 % Allocate algorithm storage if it is requested
 if nargout >= 2
-    allHessians = cell(nIterations, maxSearchSize);
+    allFIMs = cell(nIterations, maxSearchSize);
     allGoals = zeros(nIterations, maxSearchSize);
-    bestHessians = cell(nIterations, 1);
+    bestFIMs = cell(nIterations, 1);
     bestGoals = zeros(nIterations, 1);
     currentIteration = 1; % Keeps track of which iteration the loop is on
 end
 
 remainingCount = opts.ReturnCount; % The number of best experiments remaining to be found
-remainingCons = (1:numel(EHs)).'; % The indexes of the conditions allowed to be chosen
-currentH = H; % Updates after each block to hold the current expected value of the hessian
+remainingCons = vec(1:numel(EFs)); % The indexes of the conditions allowed to be chosen
+currentF = F; % Updates after each block to hold the current expected value of the hessian
 
 while (remainingCount > 0 && bestGoal > opts.TerminalGoal)
-    if opts.Verbose; fprintf('%d experiments remaining\n', remainingCount); end
+    if verbose; fprintf('%d experiments remaining\n', remainingCount); end
     
     % CurrentBlockSize is the set size of the experiments to optimize over.
     % It is equal to blockSize until the number of experiments remaining to
@@ -150,23 +149,27 @@ while (remainingCount > 0 && bestGoal > opts.TerminalGoal)
     
     % Combinatorics
     rCons = length(remainingCons);
-    conList = combinator(rCons, currentBlockSize, 'c', 'r');   % Generate list of combinations of experiments
-    nSearch = size(conList, 1);                               % Total number of possible sets
+    if opts.AllowRepeats
+        conList = combinator(rCons, currentBlockSize, 'c', 'r');   % Generate list of combinations of experiments
+    else
+        conList = combinator(rCons, currentBlockSize, 'c', 'n');   % Generate list of combinations of experiments, no repeats
+    end
+    nSearch = size(conList, 1);                                % Total number of possible sets
     
     if nargout >= 2
         % Compute expected hessians
-        newEHs = cell(nSearch,1);
+        newEFs = cell(nSearch,1);
         for iSearch = 1:nSearch
-            newEHs{iSearch} = currentH;                                                            % Expected hessian is old hessian...
+            newEFs{iSearch} = currentF;                                                            % Expected information is old information...
             for iBlock = 1:currentBlockSize
-                newEHs{iSearch} = newEHs{iSearch} + EHs{remainingCons(conList(iSearch, iBlock))};  % ...plus contributions from each hypothetical experiment
+                newEFs{iSearch} = newEFs{iSearch} + EFs{remainingCons(conList(iSearch, iBlock))};  % ...plus contributions from each hypothetical experiment
             end
         end
         
         % Compute goal values
         goalValues = zeros(nSearch, 1);
         for iSearch = 1:nSearch
-            goalValues(iSearch) = goal(newEHs{iSearch});
+            goalValues(iSearch) = goal(newEFs{iSearch});
         end
         
         % Pick best goal
@@ -178,13 +181,13 @@ while (remainingCount > 0 && bestGoal > opts.TerminalGoal)
         bestSetInd = 1;
         for iSearch = 1:nSearch
             % Compute expected hessian
-            newEH = currentH;
+            newEF = currentF;
             for iBlock = 1:currentBlockSize
-                newEH = newEH + EHs{remainingCons(conList(iSearch, iBlock))};
+                newEF = newEF + EFs{remainingCons(conList(iSearch, iBlock))};
             end
             
             % Compute goal and keep it if it is better
-            goalValue = goal(newEH);
+            goalValue = goal(newEF);
             if goalValue < bestGoal
                 bestGoal = goalValue;
                 bestSetInd = iSearch;
@@ -199,7 +202,7 @@ while (remainingCount > 0 && bestGoal > opts.TerminalGoal)
     blockInd2 = opts.ReturnCount - remainingCount + currentBlockSize;   % Where in bestCons is the last index to store
     bestCons(blockInd1:blockInd2) = bestTrueSet;                        % Store values of the best set
     
-    if opts.Verbose
+    if verbose
         for i = 1:currentBlockSize
             fprintf([posCon(bestTrueSet(i)).name ' was chosen\n']);
         end
@@ -208,7 +211,7 @@ while (remainingCount > 0 && bestGoal > opts.TerminalGoal)
     
     % Apply information for best set
     for i = 1:currentBlockSize
-        currentH = currentH + EHs{bestTrueSet(i)};
+        currentF = currentF + EFs{bestTrueSet(i)};
     end
     
     % Remove conditions if repeats are not allowed
@@ -218,9 +221,9 @@ while (remainingCount > 0 && bestGoal > opts.TerminalGoal)
     
     % Store iteration data only if it is requested
     if nargout >= 2
-        allHessians(currentIteration, 1:nSearch) = newEHs;
+        allFIMs(currentIteration, 1:nSearch) = newEFs;
         allGoals(currentIteration, 1:nSearch) = goalValues;
-        bestHessians{currentIteration} = currentH;
+        bestFIMs{currentIteration} = currentF;
         bestGoals(currentIteration) = bestGoal;
         currentIteration = currentIteration + 1;
     end
@@ -235,11 +238,11 @@ end
 bestCons = bestCons(bestCons ~= 0);
 
 if nargout >= 2
-    data.StartingFIM = H;            % FIM of system before possible experiments are applied
-    data.AllFIMs     = EHs;          % FIMs for each possible experiment
-    data.SearchFIMs  = allHessians;  % Sum of FIMs in each search
+    data.StartingFIM = F;            % FIM of system before possible experiments are applied
+    data.AllFIMs     = EFs;          % FIMs for each possible experiment
+    data.SearchFIMs  = allFIMs;      % Sum of FIMs in each search
     data.AllGoals    = allGoals;     % All the goal values of the possible iterations
-    data.BestFIMs    = bestHessians; % FIM after each iteration
+    data.BestFIMs    = bestFIMs;     % FIM after each iteration
     data.BestGoals   = bestGoals;    % Goal after each iteration
 end
 

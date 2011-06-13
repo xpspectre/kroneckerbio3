@@ -1,9 +1,9 @@
 function con = ExperimentBasic(m, tF, x0, u, discontinuities, name)
-%Experiment constructs a KroneckerBio experimental conditions structure
-%   taking advantage of the full potential of experimental conditions
+%ExperimentBasic constructs a KroneckerBio experimental conditions
+%   structure taking advantage of the full potential of experimental
+%   conditions
 %
-%   con = Experiment(m, tF, x0, steadyState, periodic, u, discontinuities,
-%                    q, dudq, name)
+%   con = ExperimentBasic(m, tF, x0, u, discontinuities, q, dudq, name)
 %
 %   The inputs to this function allow one to set all the variables that are
 %   permitted on a KroneckerBio experimental conditions structure.

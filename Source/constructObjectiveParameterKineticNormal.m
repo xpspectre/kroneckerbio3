@@ -46,7 +46,7 @@ VTbark = Vkbar(UseParams,UseParams);
 % Normalization
 if normalized
     Tk = log(Tk);
-    VTbark = diag(Tkbar.^(-1)) * VTbark * diag(Tkbar.^(-1));
+    VTbark = spdiags(Tkbar.^(-1),0,nTk,nTk) * VTbark * spdiags(Tkbar.^(-1),0,nTk,nTk);
     Tkbar = log(Tkbar);
 end
 

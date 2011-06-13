@@ -17,6 +17,7 @@ end
 if ~iscell(UseICs)
     UseParams = {UseICs};
 end
+
 if ~iscell(UseControls)
     UseParams = {UseControls};
 end

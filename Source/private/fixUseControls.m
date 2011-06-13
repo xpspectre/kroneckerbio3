@@ -1,4 +1,6 @@
 function [useControls, nTq] = fixUseControls(useControls, useModelInputs, nCon, nqModel, nqCon)
+%[useControls, nTq] = fixUseControls(useControls, useModelInputs, nCon,
+%nqModel, nqCon)
 %TODO: process linear indexes
 if useModelInputs
     if iscell(useControls)

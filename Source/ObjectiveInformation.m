@@ -96,17 +96,21 @@ nObj = size(obj, 1);
 % Ensure UseRates is column vector of logical indexes
 [opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
 
-% Ensure UseICs is a matrix of linear indexes
+% Ensure UseICs is a matrix of logical indexes
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
+
+% Ensure UseControls is a matrix of logical indexes
+nqCon = cell2mat(vec({con.nq}));
+[opts.UseControls, nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, nqCon);
 
 % Standardize structures
 con = refreshCon(m, con);
-obj = refreshObj(m, con, obj, {opts.UseParams}, {opts.UseICs}, {opts.UseControls});
+obj = refreshObj(m, con, obj, {opts.UseParams}, {opts.UseICs}, opts.UseControls);
 
 % Fix integration type
 [opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(con, obj);
 
-nT = nTx + nTk;
+nT = nTx + nTk + nTq;
 
 % Make solutions consistent as cell vectors
 if isstruct(dxdTSol)
