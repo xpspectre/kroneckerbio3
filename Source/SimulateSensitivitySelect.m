@@ -143,7 +143,7 @@ opts.RelTol = fixRelTol(opts.RelTol);
 opts.AbsTol = fixAbsTol(opts.AbsTol, 2, false(nCon,1), nx, nCon, false, opts.UseParams, opts.UseICs, opts.UseModelICs);
 
 %% Run integration for each experiment
-sim = emptystruct(nCon, 'Type', 'Name', 't', 'dydT', 'dxdT', 'sol');
+sim = emptystruct(nCon, 'Type', 'Name', 't', 'y', 'x', 'dydT', 'dxdT', 'sol');
 intOpts = opts;
 
 for iCon = 1:nCon
@@ -168,8 +168,10 @@ for iCon = 1:nCon
     sim(iCon).Type = 'Simulation.MassActionKineticsSensitivity.SelectPoints';
     sim(iCon).Name = [m.Name ' in ' con.Name];
     sim(iCon).t    = sol.x;
-    sim(iCon).dydT = reshape(sol.C1*reshape(sol.y, nx,(inT+1)*length(sol.x)), ny*(inT+1),length(sol.x));
-    sim(iCon).dxdT = sol.y;
+    sim(iCon).y    = bsxfun(@plus, sol.C1*sol.y(1:nx,:) + sol.C2*sol.u, sol.c);
+    sim(iCon).x    = sol.y(1:nx,:);
+    sim(iCon).dydT = reshape(sol.C1*reshape(sol.y(nx+1:end,:), nx,inT*numel(sol.x)), ny*inT,numel(sol.x));
+    sim(iCon).dxdT = sol.y(nx+1:end);
     sim(iCon).sol  = sol;
 end
 

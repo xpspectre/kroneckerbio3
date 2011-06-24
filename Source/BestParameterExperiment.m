@@ -93,6 +93,9 @@ defaultOpts.ReturnCount         = 1;        % Number of experiments to return
 defaultOpts.MaxGreedySize       = 1;        % Number of experiments to consider at once for the greedy search. Inf = not greedy
 defaultOpts.TerminalGoal        = -inf;
 defaultOpts.AllowRepeats        = true;
+defaultOpts.UseExperiments      = true(size(obj));
+defaultOpts.Cost                = zeros(size(obj));
+defaultOpts.Budget              = inf;
 defaultOpts.Verbose             = false;
 
 opts = mergestruct(defaultOpts, opts);
@@ -101,10 +104,28 @@ verbose = logical(opts.Verbose);
 opts.Verbose = max(opts.Verbose-1,0);
 
 % Constants
-nPos = numel(posObj);
-blockSize = min(opts.MaxGreedySize, opts.ReturnCount);  % The number of experiments over which to maximize cannot be greater than the number of experiments to be returned
-maxSearchSize = nchoosek(nPos, blockSize);
-nIterations = ceil(opts.ReturnCount / blockSize);
+nPosCon = numel(posCon);
+nPosObj = size(posObj,1);
+
+%% Fix UseExperiments
+opts.UseExperiments = fixUseExperiments(opts.UseExperiments, nPosObj, nPosCon);
+remainingCons = find(opts.UseExperiments); % The indexes of the conditions allowed to be chosen
+nPos = numel(remainingCons);
+% The block size is bounded by MaxGreedySize, ReturnCount, and the total
+% number of experiments that can be completed in the budget
+if opts.AllowRepeats
+    maxInBudget = floor(opts.Budget / min(opts.Cost(remainingCons)));
+    maxReturnCount = min(opts.ReturnCount, maxInBudget);
+    blockSize = min([opts.MaxGreedySize, opts.ReturnCount, maxInBudget]);
+    maxIterations = ceil(min(opts.ReturnCount, maxInBudget) / blockSize);
+    maxSearchSize = nPos.^blockSize;
+else
+    maxInBudget = find(cumsum(sort(opts.Cost(remainingCons))) <= opts.Budget, 1, 'last'); % Bounded by nPos
+    maxReturnCount = min(opts.ReturnCount, maxInBudget);
+    blockSize = min(opts.MaxGreedySize, maxReturnCount);
+    maxIterations = ceil(min(opts.ReturnCount, maxInBudget) / blockSize);
+    maxSearchSize = nchoosek(nPos, blockSize);
+end
 
 %% Compute old hessian
 if isempty(F)
@@ -119,28 +140,29 @@ end
 %% Find best experiment
 if verbose; fprintf('Combining information to find best experiment...\n'); end
     
-bestCons = zeros(opts.ReturnCount, 1);
+bestCons = zeros(min(opts.ReturnCount, maxInBudget), 1);
 bestGoal = goal(F);
 
 if verbose
     fprintf('Starting goal is %d\n', bestGoal)
 end
 
+remainingCount  = maxReturnCount; % The number of best experiments remaining to be found
+remainingBudget = opts.Budget;     % The total budget for the experiments
+currentF = F; % Updates after each block to hold the current expected value of the hessian
+currentIteration = 0; % Keeps track of which iteration the loop is on
+
 % Allocate algorithm storage if it is requested
 if nargout >= 2
-    allFIMs = cell(nIterations, maxSearchSize);
-    allGoals = zeros(nIterations, maxSearchSize);
-    bestFIMs = cell(nIterations, 1);
-    bestGoals = zeros(nIterations, 1);
-    currentIteration = 1; % Keeps track of which iteration the loop is on
+    allFIMs = cell(maxIterations, maxSearchSize);
+    allGoals = zeros(maxIterations, maxSearchSize);
+    bestFIMs = cell(maxIterations, 1);
+    bestGoals = zeros(maxIterations, 1);
 end
 
-remainingCount = opts.ReturnCount; % The number of best experiments remaining to be found
-remainingCons = vec(1:numel(EFs)); % The indexes of the conditions allowed to be chosen
-currentF = F; % Updates after each block to hold the current expected value of the hessian
-
-while (remainingCount > 0 && bestGoal > opts.TerminalGoal)
-    if verbose; fprintf('%d experiments remaining\n', remainingCount); end
+while remainingCount > 0 && bestGoal > opts.TerminalGoal && any(remainingBudget >= opts.Cost(remainingCons))
+    if verbose; fprintf('%d experiments and %d budget remaining\n', remainingCount, remainingBudget); end
+    currentIteration = currentIteration + 1;
     
     % CurrentBlockSize is the set size of the experiments to optimize over.
     % It is equal to blockSize until the number of experiments remaining to
@@ -148,21 +170,39 @@ while (remainingCount > 0 && bestGoal > opts.TerminalGoal)
     currentBlockSize = min(blockSize, remainingCount);
     
     % Combinatorics
-    rCons = length(remainingCons);
-    if opts.AllowRepeats
-        conList = combinator(rCons, currentBlockSize, 'c', 'r');   % Generate list of combinations of experiments
-    else
-        conList = combinator(rCons, currentBlockSize, 'c', 'n');   % Generate list of combinations of experiments, no repeats
-    end
+    conList = generateBlock(remainingCons, currentBlockSize, opts.AllowRepeats, opts.Cost(remainingCons), remainingBudget);
+%     if opts.AllowRepeats
+%         conList = combinator(rCons, currentBlockSize, 'c', 'r');   % Generate list of combinations of experiments
+%     else
+%         conList = combinator(rCons, currentBlockSize, 'c', 'n');   % Generate list of combinations of experiments, no repeats
+%     end
     nSearch = size(conList, 1);                                % Total number of possible sets
     
-    if nargout >= 2
+    if nargout < 2
+        % This way takes less memory by not storing data
+        bestGoal = inf;
+        bestSetInd = 1;
+        for iSearch = 1:nSearch
+            % Compute expected hessian
+            newEF = currentF;
+            for iBlock = 1:numel(conList{iSearch})
+                newEF = newEF + EFs{conList{iSearch}(iBlock)};
+            end
+            
+            % Compute goal and keep it if it is better
+            goalValue = goal(newEF);
+            if goalValue < bestGoal
+                bestGoal = goalValue;
+                bestSetInd = iSearch;
+            end
+        end
+    else
         % Compute expected hessians
         newEFs = cell(nSearch,1);
         for iSearch = 1:nSearch
-            newEFs{iSearch} = currentF;                                                            % Expected information is old information...
-            for iBlock = 1:currentBlockSize
-                newEFs{iSearch} = newEFs{iSearch} + EFs{remainingCons(conList(iSearch, iBlock))};  % ...plus contributions from each hypothetical experiment
+            newEFs{iSearch} = currentF;                                             % Expected information is old information...
+            for iBlock = 1:numel(conList{iSearch})
+                newEFs{iSearch} = newEFs{iSearch} + EFs{conList{iSearch}(iBlock)};  % ...plus contributions from each hypothetical experiment
             end
         end
         
@@ -175,75 +215,105 @@ while (remainingCount > 0 && bestGoal > opts.TerminalGoal)
         % Pick best goal
         bestGoal = min(goalValues);
         bestSetInd = find(bestGoal == goalValues, 1);                       % Row of conList corresponding to the minimum goal function
-    else
-        % This way takes less memory by not storing data
-        bestGoal = inf;
-        bestSetInd = 1;
-        for iSearch = 1:nSearch
-            % Compute expected hessian
-            newEF = currentF;
-            for iBlock = 1:currentBlockSize
-                newEF = newEF + EFs{remainingCons(conList(iSearch, iBlock))};
-            end
-            
-            % Compute goal and keep it if it is better
-            goalValue = goal(newEF);
-            if goalValue < bestGoal
-                bestGoal = goalValue;
-                bestSetInd = iSearch;
-            end
-        end
     end
     
     % Find corresponding best set
-    bestSet = conList(bestSetInd, :);                                   % Experiments that are part of the best set (indexes of remainingCons)
-    bestTrueSet = remainingCons(bestSet);                               % Those experiments according to the indexes of obj
-    blockInd1 = opts.ReturnCount - remainingCount + 1;                  % Where in bestCons to starting storing these experiment indexes
-    blockInd2 = opts.ReturnCount - remainingCount + currentBlockSize;   % Where in bestCons is the last index to store
-    bestCons(blockInd1:blockInd2) = bestTrueSet;                        % Store values of the best set
+    bestSet = conList{bestSetInd};                                           % Experiments that are part of the best set (indexes of remainingCons)
+    blockInd1 = maxReturnCount - remainingCount + 1;                          % Where in bestCons to starting storing these experiment indexes
+    blockInd2 = maxReturnCount - remainingCount + numel(conList{bestSetInd}); % Where in bestCons is the last index to store
+    bestCons(blockInd1:blockInd2) = bestSet;                                    % Store values of the best set
     
     if verbose
         for i = 1:currentBlockSize
-            fprintf([posCon(bestTrueSet(i)).name ' was chosen\n']);
+            [iObj iCon] = ind2sub([nPosObj,nPosCon], bestSet(i));
+            fprintf([posCon(iCon).Name ' ' posObj(bestSet(i)).Name ' was chosen\n']);
         end
         fprintf('Expected goal is %d\n', bestGoal);
     end
     
     % Apply information for best set
     for i = 1:currentBlockSize
-        currentF = currentF + EFs{bestTrueSet(i)};
+        currentF = currentF + EFs{bestSet(i)};
     end
     
     % Remove conditions if repeats are not allowed
     if ~opts.AllowRepeats
-        remainingCons(bestSet) = [];
+        remainingCons(logical(lookup(remainingCons,bestSet))) = [];
     end
     
     % Store iteration data only if it is requested
     if nargout >= 2
-        allFIMs(currentIteration, 1:nSearch) = newEFs;
+        allFIMs(currentIteration, 1:nSearch)  = newEFs;
         allGoals(currentIteration, 1:nSearch) = goalValues;
-        bestFIMs{currentIteration} = currentF;
-        bestGoals(currentIteration) = bestGoal;
-        currentIteration = currentIteration + 1;
+        bestFIMs{currentIteration}            = currentF;
+        bestGoals(currentIteration)           = bestGoal;
     end
     
     % Decrement
-    remainingCount = remainingCount - currentBlockSize;
-    
+    remainingCount  = remainingCount - currentBlockSize;
+    remainingBudget = remainingBudget - sum(opts.Cost(bestSet));
 end
 
 %% Work-down
 % Clean up if terminated on TerminalGoal rather than ReturnCount
-bestCons = bestCons(bestCons ~= 0);
+actual = (bestCons ~= 0);
+bestCons = bestCons(actual);
 
 if nargout >= 2
-    data.StartingFIM = F;            % FIM of system before possible experiments are applied
-    data.AllFIMs     = EFs;          % FIMs for each possible experiment
-    data.SearchFIMs  = allFIMs;      % Sum of FIMs in each search
-    data.AllGoals    = allGoals;     % All the goal values of the possible iterations
-    data.BestFIMs    = bestFIMs;     % FIM after each iteration
-    data.BestGoals   = bestGoals;    % Goal after each iteration
+    data.StartingFIM = F;                              % FIM of system before possible experiments are applied
+    data.AllFIMs     = EFs;                            % FIMs for each possible experiment
+    data.SearchFIMs  = allFIMs(1:currentIteration,:);  % Sum of FIMs in each search
+    data.AllGoals    = allGoals(1:currentIteration,:); % All the goal values of the possible iterations
+    data.BestFIMs    = bestFIMs(1:currentIteration);   % FIM after each iteration
+    data.BestGoals   = bestGoals(1:currentIteration);  % Goal after each iteration
 end
+
+end
+
+function list = generateBlock(conPos, blockSize, allowRepeats, costPos, budget)
+nElements = 0;
+list = cell(0,1);
+
+% Run the recusive list builder
+recursiveBuild(zeros(0,1), conPos, budget);
+
+% Remove empty elements
+list = list(1:nElements);
+
+    function recursiveBuild(recursiveList, remainingCons, remainingBudget)
+        % Recusively generate the tree that adds each experiment until no more can be added
+        canBeExtended = false;
+        if numel(recursiveList) < blockSize
+            % There is room for more experiments, see if there is enough budget
+            for iPos = 1:numel(remainingCons)
+                if remainingBudget >= costPos(iPos)
+                    % Budget allows for this experiment, add it and try to add more recursively
+                    if allowRepeats
+                        % Send the full list of experiments to the next iteration
+                        recursiveBuild([recursiveList; remainingCons(iPos)], remainingCons, remainingBudget - costPos(iPos));
+                    else
+                        % Remove repeats from possible experiments
+                        nextRemainingCons = remainingCons;
+                        nextRemainingCons(iPos) = [];
+                        recursiveBuild([recursiveList; remainingCons(iPos)], nextRemainingCons, remainingBudget - costPos(iPos));
+                    end
+                    canBeExtended = true;
+                end
+            end
+        end
+        
+        if ~canBeExtended
+            % This is a full length set. Add it to the list of sets.
+            % Increment counter
+            nElements = nElements + 1;
+            if numel(list) < nElements
+                % Double size of list
+                list = [list; cell(max(nElements,1),1)];
+            end
+            
+            % Add element
+            list{nElements} = recursiveList;
+        end
+    end
 
 end

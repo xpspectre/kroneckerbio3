@@ -21,7 +21,7 @@ nP = length(F{1});
 % Compute uncertainty spectra
 sigmas = zeros(nP,n);
 for i = 1:n
-    lambda = eig(F{i});
+    lambda = infoeig(F{i});
     lambda(lambda < eps) = eps;
     sigmas(:,i) = sqrt(lambda).^-1;
 end

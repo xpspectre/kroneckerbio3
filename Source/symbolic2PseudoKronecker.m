@@ -313,6 +313,9 @@ if ~isempty(d3fdkdx2)
     d3fdkdx2            = reshape(d3fdkdx2, nx*nx*nx,nk);
 end
 
+% S
+S(isu,:) = [];
+
 % drdx
 if ~isempty(drdx)
     drdu        = drdx(:,isu);
@@ -653,63 +656,63 @@ if ~isempty(dfdx)
     dfdx = regexprep(dfdx, '[', ''); %remove extra "[" from front of lines
     dfdx = regexprep(dfdx, ']', ''); %and "]"
     dfdx = strtrim(dfdx);            %trim excess new lines from the end
-    dfdx = eval(['@(t,x,u,k) sparse([' dfdx '])']);
+    dfdx = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' dfdx '])))']);
 end
 
 if ~isempty(dfdu)
     dfdu = regexprep(dfdu, '[', '');
     dfdu = regexprep(dfdu, ']', '');
     dfdu = strtrim(dfdu);
-    dfdu = eval(['@(t,x,u,k) sparse([' dfdu '])']);
+    dfdu = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' dfdu '])))']);
 end
 
 if ~isempty(dfdk)
     dfdk = regexprep(dfdk, '[', '');
     dfdk = regexprep(dfdk, ']', '');
     dfdk = strtrim(dfdk);
-    dfdk = eval(['@(t,x,u,k) sparse([' dfdk '])']);
+    dfdk = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' dfdk '])))']);
 end
 
 if ~isempty(d2fdx2)
     d2fdx2 = regexprep(d2fdx2, '[', '');
     d2fdx2 = regexprep(d2fdx2, ']', '');
     d2fdx2 = strtrim(d2fdx2);
-    d2fdx2 = eval(['@(t,x,u,k) sparse([' d2fdx2 '])']);
+    d2fdx2 = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' d2fdx2 '])))']);
 end
 
 if ~isempty(d2fdk2)
     d2fdk2 = regexprep(d2fdk2, '[', '');
     d2fdk2 = regexprep(d2fdk2, ']', '');
     d2fdk2 = strtrim(d2fdk2);
-    d2fdk2 = eval(['@(t,x,u,k) sparse([' d2fdk2 '])']);
+    d2fdk2 = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' d2fdk2 '])))']);
 end
 
 if ~isempty(d2fdkdx)
     d2fdkdx = regexprep(d2fdkdx, '[', '');
     d2fdkdx = regexprep(d2fdkdx, ']', '');
     d2fdkdx = strtrim(d2fdkdx);
-    d2fdkdx = eval(['@(t,x,u,k) sparse([' d2fdkdx '])']);
+    d2fdkdx = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' d2fdkdx '])))']);
 end
 
 if ~isempty(d2fdxdk)
     d2fdxdk = regexprep(d2fdxdk, '[', '');
     d2fdxdk = regexprep(d2fdxdk, ']', '');
     d2fdxdk = strtrim(d2fdxdk);
-    d2fdxdk = eval(['@(t,x,u,k) sparse([' d2fdxdk '])']);
+    d2fdxdk = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' d2fdxdk '])))']);
 end
 
 if ~isempty(d3fdx3)
     d3fdx3 = regexprep(d3fdx3, '[', '');
     d3fdx3 = regexprep(d3fdx3, ']', '');
     d3fdx3 = strtrim(d3fdx3);
-    d3fdx3 = eval(['@(t,x,u,k) sparse([' d3fdx3 '])']);
+    d3fdx3 = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' d3fdx3 '])))']);
 end
 
 if ~isempty(d3fdkdx2)
     d3fdkdx2 = regexprep(d3fdkdx2, '[', '');
     d3fdkdx2 = regexprep(d3fdkdx2, ']', '');
     d3fdkdx2 = strtrim(d3fdkdx2);
-    d3fdkdx2 = eval(['@(t,x,u,k) sparse([' d3fdkdx2 '])']);
+    d3fdkdx2 = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' d3fdkdx2 '])))']);
 end
 
 r = eval(['@(t,x,u,k) [' r ']']);
@@ -718,49 +721,49 @@ if ~isempty(drdx)
     drdx = regexprep(drdx, '[', ''); %remove extra "[" from front of lines
     drdx = regexprep(drdx, ']', ''); %and "]"
     drdx = strtrim(drdx);            %trim excess new lines from the end
-    drdx = eval(['@(t,x,u,k) sparse([' drdx '])']);
+    drdx = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' drdx '])))']);
 end
 
 if ~isempty(drdu)
     drdu = regexprep(drdu, '[', '');
     drdu = regexprep(drdu, ']', '');
     drdu = strtrim(drdu);
-    drdu = eval(['@(t,x,u,k) sparse([' drdu '])']);
+    drdu = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' drdu '])))']);
 end
 
 if ~isempty(drdk)
     drdk = regexprep(drdk, '[', '');
     drdk = regexprep(drdk, ']', '');
     drdk = strtrim(drdk);
-    drdk = eval(['@(t,x,u,k) sparse([' drdk '])']);
+    drdk = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' drdk '])))']);
 end
 
 if ~isempty(d2rdx2)
     d2rdx2 = regexprep(d2rdx2, '[', '');
     d2rdx2 = regexprep(d2rdx2, ']', '');
     d2rdx2 = strtrim(d2rdx2);
-    d2rdx2 = eval(['@(t,x,u,k) sparse([' d2rdx2 '])']);
+    d2rdx2 = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' d2rdx2 '])))']);
 end
 
 if ~isempty(d2rdk2)
     d2rdk2 = regexprep(d2rdk2, '[', '');
     d2rdk2 = regexprep(d2rdk2, ']', '');
     d2rdk2 = strtrim(d2rdk2);
-    d2rdk2 = eval(['@(t,x,u,k) sparse([' d2rdk2 '])']);
+    d2rdk2 = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' d2rdk2 '])))']);
 end
 
 if ~isempty(d2rdkdx)
     d2rdkdx = regexprep(d2rdkdx, '[', '');
     d2rdkdx = regexprep(d2rdkdx, ']', '');
     d2rdkdx = strtrim(d2rdkdx);
-    d2rdkdx = eval(['@(t,x,u,k) sparse([' d2rdkdx '])']);
+    d2rdkdx = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' d2rdkdx '])))']);
 end
 
 if ~isempty(d2rdxdk)
     d2rdxdk = regexprep(d2rdxdk, '[', '');
     d2rdxdk = regexprep(d2rdxdk, ']', '');
     d2rdxdk = strtrim(d2rdxdk);
-    d2rdxdk = eval(['@(t,x,u,k) sparse([' d2rdxdk '])']);
+    d2rdxdk = eval(['@(t,x,u,k) inf2big(nan2zero(sparse([' d2rdxdk '])))']);
 end
 
 if verbose; fprintf('done.\n'); end
@@ -894,7 +897,7 @@ if verbose; fprintf('done.\n'); end
             m.dfdx      = @(t,x,u)dfdx(t,x,u,k);
         end
         if ~isempty(dfdk)
-            m.dfdp      = @(t,x,u)dfdk(t,x,u,k);
+            m.dfdk      = @(t,x,u)dfdk(t,x,u,k);
         end
         if ~isempty(dfdu)
             m.dfdu      = @(t,x,u)dfdu(t,x,u,k);
@@ -903,19 +906,41 @@ if verbose; fprintf('done.\n'); end
             m.d2fdx2    = @(t,x,u)d2fdx2(t,x,u,k);
         end
         if ~isempty(d2fdk2)
-            m.d2fdp2    = @(t,x,u)d2fdk2(t,x,u,k);
+            m.d2fdk2    = @(t,x,u)d2fdk2(t,x,u,k);
         end
         if ~isempty(d2fdkdx)
-            m.d2fdpdx   = @(t,x,u)d2fdkdx(t,x,u,k);
+            m.d2fdkdx   = @(t,x,u)d2fdkdx(t,x,u,k);
         end
         if ~isempty(d2fdxdk)
-            m.d2fdxdp   = @(t,x,u)d2fdxdk(t,x,u,k);
+            m.d2fdxdk   = @(t,x,u)d2fdxdk(t,x,u,k);
         end
         if ~isempty(d3fdx3)
             m.d3fdx3    = @(t,x,u)d3fdx3(t,x,u,k);
         end
         if ~isempty(d3fdkdx2)
-            m.d3fdpdx2  = @(t,x,u)d3fdkdx2(t,x,u,k);
+            m.d3fdkdx2  = @(t,x,u)d3fdkdx2(t,x,u,k);
+        end
+        m.r             = @(t,x,u)r(t,x,u,k);
+        if ~isempty(dfdx)
+            m.drdx      = @(t,x,u)drdx(t,x,u,k);
+        end
+        if ~isempty(dfdk)
+            m.drdk      = @(t,x,u)drdk(t,x,u,k);
+        end
+        if ~isempty(dfdu)
+            m.drdu      = @(t,x,u)drdu(t,x,u,k);
+        end
+        if ~isempty(d2fdx2)
+            m.d2rdx2    = @(t,x,u)d2rdx2(t,x,u,k);
+        end
+        if ~isempty(d2fdk2)
+            m.d2rdk2    = @(t,x,u)d2rdk2(t,x,u,k);
+        end
+        if ~isempty(d2fdkdx)
+            m.d2rdkdx   = @(t,x,u)d2rdkdx(t,x,u,k);
+        end
+        if ~isempty(d2fdxdk)
+            m.d2rdxdk   = @(t,x,u)d2rdxdk(t,x,u,k);
         end
         m.Update = @Update;
         

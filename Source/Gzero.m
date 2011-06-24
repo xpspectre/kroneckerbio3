@@ -249,7 +249,7 @@ obj.Update = @Update;
         val = [];
     end
 
-    function obj = Update(m,con)
+    function obj = Update(m,con,useParams,useICs,useControls)
         obj = Gzero(m);
     end
 

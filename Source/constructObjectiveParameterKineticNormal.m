@@ -1,16 +1,19 @@
-function obj = constructObjectiveParameterKineticNormal(m, kbar, Vkbar, UseParams, normalized)
+function obj = constructObjectiveParameterKineticNormal(m, kbar, Vkbar, UseParams, normalized, name)
 
 % Clean up inputs
-if nargin < 5
-    normalized = [];
-    if nargin < 4
-        UseParams = [];
-        if nargin < 3
-            Vkbar = [];
-            if nargin < 2
-                kbar = [];
-                if nargin < 1
-                    m = [];
+if nargin < 6
+    name = [];
+    if nargin < 5
+        normalized = [];
+        if nargin < 4
+            UseParams = [];
+            if nargin < 3
+                Vkbar = [];
+                if nargin < 2
+                    kbar = [];
+                    if nargin < 1
+                        m = [];
+                    end
                 end
             end
         end
@@ -50,6 +53,8 @@ if normalized
     Tkbar = log(Tkbar);
 end
 
+FTbark = infoinv(VTbark);
+
 % Gut m
 temp = m;
 clear m
@@ -58,9 +63,13 @@ m.nk = temp.nk;
 m.k = temp.k;
 clear temp
 
+if isempty(name)
+	name = 'PriorKineticParametersNormal';
+end
+
 % Objective structure
 obj.Type = 'Objective.Information';
-obj.Name = 'PriorKineticParametersNormal';
+obj.Name = name;
 
 obj.Continuous    = false;
 obj.Complex       = false;
@@ -123,11 +132,11 @@ obj.Update = @update;
         val = zeros(nT,nT);
         
         if ~normalized
-            val(1:nTk,1:nTk) = inv(VTbark);
+            val(1:nTk,1:nTk) = FTbark;
         else
             % Unnormalize
             TkbarTemp = exp(Tkbar);
-            val(1:nTk,1:nTk) = diag(TkbarTemp) * inv(VTbark) * diag(TkbarTemp);
+            val(1:nTk,1:nTk) = diag(TkbarTemp) * FTbark * diag(TkbarTemp);
         end
     end
 
@@ -138,9 +147,9 @@ obj.Update = @update;
         
         if ~normalized
             % Normalize
-            val(1:nTk,1:nTk) = diag(Tkbar.^(-1)) * inv(VTbark) * diag(Tkbar.^(-1));
+            val(1:nTk,1:nTk) = diag(Tkbar.^(-1)) * FTbark * diag(Tkbar.^(-1));
         else
-            val(1:nTk,1:nTk) = inv(VTbark);
+            val(1:nTk,1:nTk) = FTbark;
         end
     end
 

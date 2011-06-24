@@ -67,7 +67,7 @@ if isnumeric(u)
     if isempty(value)
         value = zeros(0,1);
     end
-    assert(numel(u) == m.nu, 'KroneckerBio:ExperimentBasic:InputWrongLength', 'Numeric inputs u must have a length of m.nq')
+    assert(numel(u) == m.nu, 'KroneckerBio:ExperimentBasic:InputWrongLength', 'Numeric inputs u must have a length of m.nu')
     u = vec(u);
     u = @(t)repmat(value, 1,numel(t));
 end

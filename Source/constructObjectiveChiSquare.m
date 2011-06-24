@@ -1,4 +1,4 @@
-function obj = constructObjectiveChiSquare(m, outputs, times, sd, nonNegMeasurements, measurements, perfect)
+function obj = constructObjectiveChiSquare(m, outputs, times, sd, nonNegMeasurements, measurements, perfect, name)
 %obj = constructObjectiveChiSquare(m, outputs, times, sd,
 %nonNegMeasurements, measurements, perfect)
 %returns X2, chi-square, the generalized least squares statistic
@@ -7,20 +7,23 @@ function obj = constructObjectiveChiSquare(m, outputs, times, sd, nonNegMeasurem
 % value of output
 
 % Clean up inputs
-if nargin < 7
-    perfect = [];
-    if nargin < 6
-        measurements = [];
-        if nargin < 5
-            nonNegMeasurements = [];
-            if nargin < 4
-                sd = [];
-                if nargin < 3
-                    times = [];
-                    if nargin < 2
-                        outputs = [];
-                        if nargin < 1
-                            m = [];
+if nargin < 8
+    name = [];
+    if nargin < 7
+        perfect = [];
+        if nargin < 6
+            measurements = [];
+            if nargin < 5
+                nonNegMeasurements = [];
+                if nargin < 4
+                    sd = [];
+                    if nargin < 3
+                        times = [];
+                        if nargin < 2
+                            outputs = [];
+                            if nargin < 1
+                                m = [];
+                            end
                         end
                     end
                 end
@@ -74,9 +77,12 @@ if isempty(perfect)
     perfect = false;
 end
 
-obj.Type = 'Objective.Data.ChiSquare';
-obj.Name = 'ChiSquare';
+if isempty(name)
+    name = 'ChiSquare';
+end
 
+obj.Type = 'Objective.Data.ChiSquare';
+obj.Name = name;
 obj.DiscreteTimes = discreteTimes;
 obj.Continuous = false;
 obj.Complex = false;
