@@ -66,7 +66,7 @@ for ixu = 1:nxuNew
     end
     
     % Check newly added states
-    matchPosition = find(strcmp(m.add.Species(ixu).Name, {m.add.Species(1:ixu-1).Name}));
+    matchPosition = find(strcmp(m.add.Species(ixu).Name, {m.add.Species(1:ixu-1).Name}) & strcmp(m.add.Species(ixu).Compartment, {m.add.Species(1:ixu-1).Compartment}));
     if ~isempty(matchPosition)
         handled(matchPosition) = true;
     end
@@ -398,7 +398,7 @@ uHandled = true(nu,1);
 xuNewInd = zeros(nxuNew,1);
 for ixuNew = 1:nxuNew
     % Index in Species.Names that this new Species applies
-    xuIndi = find(strcmp(m.add.Species(ixuNew).Name, {m.Species.Name}));
+    xuIndi = find(strcmp(m.add.Species(ixuNew).Name, {m.Species.Name}) & strcmp(m.add.Species(ixuNew).Compartment, {m.Species.Compartment}));
     xuNewInd(ixuNew) = xuIndi;
     
     if m.add.Species(ixuNew).IsInput
