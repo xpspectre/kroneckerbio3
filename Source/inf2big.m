@@ -3,5 +3,5 @@ function A = inf2big(A)
 %
 %   A = inf2big(A)
 
-A(A == -inf) = -1e6;
-A(A == inf)  =  1e6;
+A(A < -1e6) = -1e6;
+A(A > 1e6)  =  1e6;

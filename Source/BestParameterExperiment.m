@@ -91,6 +91,7 @@ defaultOpts.UseICs              = [];
 defaultOpts.UseModelICs         = true;
 defaultOpts.ReturnCount         = 1;        % Number of experiments to return
 defaultOpts.MaxGreedySize       = 1;        % Number of experiments to consider at once for the greedy search. Inf = not greedy
+defaultOpts.MaxGreedyBudget     = inf;      % Amount of budget to consider in a single step. Inf = not greedy
 defaultOpts.TerminalGoal        = -inf;
 defaultOpts.AllowRepeats        = true;
 defaultOpts.UseExperiments      = true(size(obj));
@@ -116,14 +117,16 @@ nPos = numel(remainingCons);
 if opts.AllowRepeats
     maxInBudget = floor(opts.Budget / min(opts.Cost(remainingCons)));
     maxReturnCount = min(opts.ReturnCount, maxInBudget);
-    blockSize = min([opts.MaxGreedySize, opts.ReturnCount, maxInBudget]);
-    maxIterations = ceil(min(opts.ReturnCount, maxInBudget) / blockSize);
+    maxInBudgetStep = floor(opts.MaxGreedyBudget / min(opts.Cost(remainingCons)));
+    blockSize = min([opts.MaxGreedySize, maxReturnCount maxInBudgetStep]);
+    maxIterations = ceil(maxReturnCount / blockSize);
     maxSearchSize = nPos.^blockSize;
 else
     maxInBudget = find(cumsum(sort(opts.Cost(remainingCons))) <= opts.Budget, 1, 'last'); % Bounded by nPos
     maxReturnCount = min(opts.ReturnCount, maxInBudget);
-    blockSize = min(opts.MaxGreedySize, maxReturnCount);
-    maxIterations = ceil(min(opts.ReturnCount, maxInBudget) / blockSize);
+    maxInBudgetStep = floor(opts.MaxGreedyBudget / min(opts.Cost(remainingCons)));
+    blockSize = min([opts.MaxGreedySize, maxReturnCount maxInBudgetStep]);
+    maxIterations = ceil(maxReturnCount / blockSize);
     maxSearchSize = nchoosek(nPos, blockSize);
 end
 
@@ -140,7 +143,7 @@ end
 %% Find best experiment
 if verbose; fprintf('Combining information to find best experiment...\n'); end
     
-bestCons = zeros(min(opts.ReturnCount, maxInBudget), 1);
+bestCons = zeros(maxReturnCount, 1);
 bestGoal = goal(F);
 
 if verbose
@@ -148,8 +151,8 @@ if verbose
 end
 
 remainingCount  = maxReturnCount; % The number of best experiments remaining to be found
-remainingBudget = opts.Budget;     % The total budget for the experiments
-currentF = F; % Updates after each block to hold the current expected value of the hessian
+remainingBudget = opts.Budget;    % The total budget for the experiments
+currentF = F; % Updates after each block to hold the current expected information
 currentIteration = 0; % Keeps track of which iteration the loop is on
 
 % Allocate algorithm storage if it is requested
@@ -168,15 +171,11 @@ while remainingCount > 0 && bestGoal > opts.TerminalGoal && any(remainingBudget 
     % It is equal to blockSize until the number of experiments remaining to
     % be found is less than blockSize.
     currentBlockSize = min(blockSize, remainingCount);
+    currentBudget    = min(opts.MaxGreedyBudget, remainingBudget);
     
     % Combinatorics
-    conList = generateBlock(remainingCons, currentBlockSize, opts.AllowRepeats, opts.Cost(remainingCons), remainingBudget);
-%     if opts.AllowRepeats
-%         conList = combinator(rCons, currentBlockSize, 'c', 'r');   % Generate list of combinations of experiments
-%     else
-%         conList = combinator(rCons, currentBlockSize, 'c', 'n');   % Generate list of combinations of experiments, no repeats
-%     end
-    nSearch = size(conList, 1);                                % Total number of possible sets
+    conList = generateBlock(remainingCons, currentBlockSize, opts.AllowRepeats, opts.Cost, currentBudget);
+    nSearch = size(conList, 1); % Total number of possible sets
     
     if nargout < 2
         % This way takes less memory by not storing data
@@ -214,17 +213,17 @@ while remainingCount > 0 && bestGoal > opts.TerminalGoal && any(remainingBudget 
         
         % Pick best goal
         bestGoal = min(goalValues);
-        bestSetInd = find(bestGoal == goalValues, 1);                       % Row of conList corresponding to the minimum goal function
+        bestSetInd = find(bestGoal == goalValues, 1);                           % Row of conList corresponding to the minimum goal function
     end
     
     % Find corresponding best set
-    bestSet = conList{bestSetInd};                                           % Experiments that are part of the best set (indexes of remainingCons)
-    blockInd1 = maxReturnCount - remainingCount + 1;                          % Where in bestCons to starting storing these experiment indexes
-    blockInd2 = maxReturnCount - remainingCount + numel(conList{bestSetInd}); % Where in bestCons is the last index to store
+    bestSet = conList{bestSetInd};                                              % Experiments that are part of the best set (indexes of remainingCons)
+    blockInd1 = maxReturnCount - remainingCount + 1;                            % Where in bestCons to starting storing these experiment indexes
+    blockInd2 = maxReturnCount - remainingCount + numel(conList{bestSetInd});   % Where in bestCons is the last index to store
     bestCons(blockInd1:blockInd2) = bestSet;                                    % Store values of the best set
     
     if verbose
-        for i = 1:currentBlockSize
+        for i = 1:numel(bestSet)
             [iObj iCon] = ind2sub([nPosObj,nPosCon], bestSet(i));
             fprintf([posCon(iCon).Name ' ' posObj(bestSet(i)).Name ' was chosen\n']);
         end
@@ -232,7 +231,7 @@ while remainingCount > 0 && bestGoal > opts.TerminalGoal && any(remainingBudget 
     end
     
     % Apply information for best set
-    for i = 1:currentBlockSize
+    for i = 1:numel(bestSet)
         currentF = currentF + EFs{bestSet(i)};
     end
     
@@ -270,50 +269,118 @@ end
 
 end
 
-function list = generateBlock(conPos, blockSize, allowRepeats, costPos, budget)
-nElements = 0;
-list = cell(0,1);
+function list = generateBlock(conPos, blockSize, allowRepeats, cost, budget)
+minCost = min(min(cost(conPos)));
+nPos = numel(conPos);
 
-% Run the recusive list builder
-recursiveBuild(zeros(0,1), conPos, budget);
+% Create set of single experiments
+list = cell(blockSize,1);
+list{1} = conPos; % The list of all blocks that will be grown
+setCost = cost(conPos); % The cost of each block in the current set
+overpriced = (setCost > budget); % Blocks that will be removed and discarded
+list{1}(overpriced) = []; % The list of all blocks that will be grown
+setCost(overpriced) = []; % The cost of each block in the current set
 
-% Remove empty elements
-list = list(1:nElements);
-
-    function recursiveBuild(recursiveList, remainingCons, remainingBudget)
-        % Recusively generate the tree that adds each experiment until no more can be added
-        canBeExtended = false;
-        if numel(recursiveList) < blockSize
-            % There is room for more experiments, see if there is enough budget
-            for iPos = 1:numel(remainingCons)
-                if remainingBudget >= costPos(iPos)
-                    % Budget allows for this experiment, add it and try to add more recursively
-                    if allowRepeats
-                        % Send the full list of experiments to the next iteration
-                        recursiveBuild([recursiveList; remainingCons(iPos)], remainingCons, remainingBudget - costPos(iPos));
-                    else
-                        % Remove repeats from possible experiments
-                        nextRemainingCons = remainingCons;
-                        nextRemainingCons(iPos) = [];
-                        recursiveBuild([recursiveList; remainingCons(iPos)], nextRemainingCons, remainingBudget - costPos(iPos));
-                    end
-                    canBeExtended = true;
-                end
-            end
-        end
-        
-        if ~canBeExtended
-            % This is a full length set. Add it to the list of sets.
-            % Increment counter
-            nElements = nElements + 1;
-            if numel(list) < nElements
-                % Double size of list
-                list = [list; cell(max(nElements,1),1)];
-            end
-            
-            % Add element
-            list{nElements} = recursiveList;
-        end
+% Loop over blockSize
+for iDim = 2:blockSize
+    growable = (setCost + minCost <= budget); % Blocks that will be removed and carried to the next stage
+    nGrow = sum(growable);
+    addable = (cost(conPos) <= max(budget - setCost));
+    nAdd = sum(addable);
+    list{iDim} = reshape(repmat(reshape(list{iDim-1}(growable,:), 1,(iDim-1)*nGrow), nAdd,1), nAdd*nGrow,iDim-1); % Repeat each line nPos to prepare to receive conPos
+    list{iDim} = [list{iDim}, repmat(conPos(addable), nGrow,1)]; % Concatenate new indexes
+    
+    % Remove grown blocks from previous set
+    list{iDim-1}(growable,:) = [];
+    
+    % Remove permutations by forcing an ascending block
+    repeats = list{iDim}(:,iDim-1) >= list{iDim}(:,iDim);
+    list{iDim}(repeats,:) = [];
+    
+    % Remove repeats
+    if ~allowRepeats
+        repeats = any(bsxfun(@eq, list{iDim}(:,1:iDim-2), list{iDim}(:,iDim)),2); % Find all rows that have repeats with new indexes
+        list{iDim}(repeats,:) = []; % Remove repeats
     end
-
+    
+    % Remove overpriced blocks
+    setCost = sum(cost(list{iDim}),2);
+    overpriced = (setCost > budget);
+    list{iDim}(overpriced,:) = [];
+    setCost(overpriced) = [];
 end
+
+% Distribute blocks into individual cells
+list = cellfun(@(A)num2cell(A, 2), list, 'UniformOutput', false);
+list = cat(1, list{:});
+end
+
+% function list = generateBlock(conPos, blockSize, allowRepeats, cost, budget)
+% 
+% nPos = numel(conPos);
+% listSize = repmat(nPos, blockSize,1);
+% 
+% if allowRepeats
+%     list = false(listSize);
+%     inds = combinator(nPos, blockSize, 'c', 'r'); % Generate all possible sets that fit in blockSize
+%     inds = mat2cell(inds, size(inds,1), ones(size(inds,1),1)); % Distribute each column over a cell vector
+%     list(sub2ind(listSize, inds{:})) = true; % Mark each valid set of experiments in logical hypercube
+% else
+%     list = false(listSize);
+%     inds = combinator(nPos, blockSize, 'c', 'n'); % Generate all possible sets that fit in blockSize
+%     inds = mat2cell(inds, size(inds,1), ones(size(inds,1),1)); % Distribute each column over a cell vector
+%     list(sub2ind(listSize, inds{:})) = true; % Mark each valid set of experiments in logical hypercube
+% end
+% 
+% for iDim = blockSize:-1:1
+% end
+% 
+% end
+
+% function list = generateBlock(conPos, blockSize, allowRepeats, costPos, budget)
+% nElements = 0;
+% list = cell(0,1);
+% 
+% % Run the recusive list builder
+% recursiveBuild(zeros(0,1), conPos, budget);
+% 
+% % Remove empty elements
+% list = list(1:nElements);
+% 
+%     function recursiveBuild(recursiveList, remainingCons, remainingBudget)
+%         % Recusively generate the tree that adds each experiment until no more can be added
+%         canBeExtended = false;
+%         if numel(recursiveList) < blockSize
+%             % There is room for more experiments, see if there is enough budget
+%             for iPos = 1:numel(remainingCons)
+%                 if remainingBudget >= costPos(iPos)
+%                     % Budget allows for this experiment, add it and try to add more recursively
+%                     if allowRepeats
+%                         % Send the full list of experiments to the next iteration
+%                         recursiveBuild([recursiveList; remainingCons(iPos)], remainingCons, remainingBudget - costPos(iPos));
+%                     else
+%                         % Remove repeats from possible experiments
+%                         nextRemainingCons = remainingCons;
+%                         nextRemainingCons(iPos) = [];
+%                         recursiveBuild([recursiveList; remainingCons(iPos)], nextRemainingCons, remainingBudget - costPos(iPos));
+%                     end
+%                     canBeExtended = true;
+%                 end
+%             end
+%         end
+%         
+%         if ~canBeExtended
+%             % This is a full length set. Add it to the list of sets.
+%             % Increment counter
+%             nElements = nElements + 1;
+%             if numel(list) < nElements
+%                 % Double size of list
+%                 list = [list; cell(max(nElements,1),1)];
+%             end
+%             
+%             % Add element
+%             list{nElements} = recursiveList;
+%         end
+%     end
+% 
+% end

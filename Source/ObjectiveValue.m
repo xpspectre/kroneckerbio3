@@ -19,6 +19,21 @@ function G = ObjectiveValue(m, con, obj, opts)
 %       .UseModelInputs [ logical scalar {false} ]
 %           Indicates that the model's inputs should be used instead of
 %           those of the experimental conditions
+%       .UseParams [ logical vector nk | positive integer vector {1:nk} ]
+%           Which kinetic parameters the gradient will be calculated on.
+%           Has an effect only if the objective function is sensitive to
+%           this parameter
+%       .UseICs [ logical matrix nx by nCon | logical vector nx |
+%                 positive integer vector {[]} ]
+%           Which initial conditions the gradient will be calculated on Has
+%           an effect only if the objective function is sensitive to this
+%           parameter
+%       .UseControls [ cell vector nCon of logical vectors or positive 
+%                      integer vectors | logical vector nq | positive 
+%                      integer vector {[]} ]
+%           Which input control parameters the gradient will be calculated
+%           on Has an effect only if the objective function is sensitive to
+%           this parameter
 %       .RelTol [ nonnegative scalar {1e-6} ]
 %           Relative tolerance of the integration
 %       .AbsTol [ cell vector of nonnegative vectors | nonnegative vector |
@@ -50,6 +65,10 @@ assert(isscalar(m), 'KroneckerBio:ObjectiveValue:MoreThanOneModel', 'The model s
 % Options
 defaultOpts.UseModelICs    = true;
 defaultOpts.UseModelInputs = false;
+defaultOpts.UseParams      = 1:m.nk;
+defaultOpts.UseICs         = [];
+defaultOpts.UseControls    = [];
+
 defaultOpts.ObjWeights     = ones(size(obj));
 defaultOpts.RelTol         = NaN;
 defaultOpts.AbsTol         = NaN;
@@ -59,11 +78,22 @@ opts = mergestruct(defaultOpts, opts);
 
 % Constants
 nx = m.nx;
+nk = m.nk;
 nCon = numel(con);
 
-% Add missing fields to structure
-con = pastestruct(Uzero(m), con);
-obj = pastestruct(Gzero(m), obj);
+% Ensure UseRates is column vector of logical indexes
+[opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
+
+% Ensure UseICs is a matrix of linear indexes
+[opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
+
+[opts.UseControls nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, cat(1,con.nq));
+
+nT = nTk + nTx + nTq;
+
+% Refresh conditions and objectives
+con = refreshCon(m, con);
+obj = refreshObj(m, con, obj, opts.UseParams, opts.UseICs, opts.UseControls);
 
 % Fix integration type
 [opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(con, obj);

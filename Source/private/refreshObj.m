@@ -10,24 +10,44 @@ function newObj = refreshObj(m, con, obj, UseParams, UseICs, UseControls)
 % (c) 2011 David R Hagen & Bruce Tidor
 % This work is released under the MIT license.
 
+% Clean-up inputs
+if nargin < 5
+    UseControls = [];
+    if nargin < 4
+        UseICs = [];
+        if nargin < 3
+            UseParams = [];
+        end
+    end
+end
+
+nTop = numel(m);
+nCon = size(con, 1);
+nObj = size(obj, 1);
+
+% Clean-up empties
+if isempty(UseParams)
+    UseParams = cell(nTop,1);
+end
+if isempty(UseICs)
+    UseICs = cell(nTop,1);
+end
+if isempty(UseControls)
+    UseControls = cell(nCon,nTop);
+end
+
 % Make options consistent as cell arrays
 if ~iscell(UseParams)
     UseParams = {UseParams};
 end
 if ~iscell(UseICs)
-    UseParams = {UseICs};
+    UseICs = {UseICs};
 end
-
 if ~iscell(UseControls)
-    UseParams = {UseControls};
+    UseControls = {UseControls};
 end
 
-
-nTop = numel(m);
-nCon = size(con, 1);
-nObj = size(obj, 1);
 newObj = Gzero([nObj,nCon,nTop]);
-
 for iTop = 1:nTop
     for iCon = 1:nCon
         for iObj = 1:nObj

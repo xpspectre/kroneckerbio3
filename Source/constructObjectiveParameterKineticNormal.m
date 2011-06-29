@@ -168,7 +168,15 @@ obj.Update = @update;
     end
 
 %% Update
-    function objNew = update(m, con, UseParams, UseICs, UseControls)
-        objNew = constructObjectiveParameterKineticNormal(m, kbar, Vkbar, UseParams, normalized);
+    function objNew = update(m, con, newUseParams, newUseICs, newUseControls)
+        if nargin < 3
+            newUseParams = [];
+        end
+        
+        if isempty(newUseParams)
+            newUseParams = UseParams;
+        end
+        
+        objNew = constructObjectiveParameterKineticNormal(m, kbar, Vkbar, newUseParams, normalized);
     end
 end

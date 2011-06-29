@@ -22,7 +22,7 @@ function m = AddOutput(m, name, expressions, values, units)
 %       regular expression provided here. If the string is empty, it means
 %       that the output has a constant component.
 %   values: [ nonnegative scalar | nonnegative vector numel(expressions)
-%             {0} ]
+%             {1} ]
 %       Optional
 %       Each entry in this vector is associated with one of the
 %       expressions. This value tells how much a species will contribute
@@ -42,6 +42,9 @@ function m = AddOutput(m, name, expressions, values, units)
 % Clean-up inputs
 if nargin < 5
     units = [];
+    if nargin < 4
+        values = [];
+    end
 end
 
 % Increment counter
@@ -52,6 +55,7 @@ m.add.Outputs = growOutputs(m.add.Outputs, ny);
 % Add item
 m.add.Outputs(ny).Name = fixName(name);
 m.add.Outputs(ny).Expressions = fixExpression(expressions);
-m.add.Outputs(ny).Values = fixOutputValues(values, fixUnits(units));
+nExpr = m.add.Outputs(ny).Expressions;
+m.add.Outputs(ny).Values = fixOutputValues(nExpr, values, fixUnits(units));
 
 m.Ready = false;

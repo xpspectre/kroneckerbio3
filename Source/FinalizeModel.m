@@ -250,6 +250,11 @@ for ir = 1:nrNew
 
             aReactionWasFound = true;
         end
+        
+        % Exit if all compartments are specified
+        if (reactant1Complete || ~reactant1Exists) && (reactant2Complete || ~reactant2Exists) && (product1Complete || ~product1Exists) && (product2Complete || ~product2Exists)
+            break
+        end
     end
     
     % Warn if no compartment had the species for this reaction specification
