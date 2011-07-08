@@ -503,13 +503,17 @@ obj.Update = @update;
 
 %% P-Value
     function pval = pvalue(sol, obj)
+        nCon = numel(sol);
+        nObj = size(obj,1);
         chi2 = 0;
         ntot = 0;
         
         % Sum chi-square and n across all data
-        for i = 1:length(sol)
-            chi2 = chi2 + obj(i).G(sol(i));
-            ntot = ntot + obj(i).n;
+        for iCon = 1:nCon
+            for iObj = 1:nObj
+                chi2 = chi2 + obj(iObj,iCon).G(sol(iCon));
+                ntot = ntot + obj(iObj,iCon).n;
+            end
         end
         
         pval = chi2pvalue(chi2, ntot);

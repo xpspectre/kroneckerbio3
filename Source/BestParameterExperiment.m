@@ -157,8 +157,9 @@ currentIteration = 0; % Keeps track of which iteration the loop is on
 
 % Allocate algorithm storage if it is requested
 if nargout >= 2
-    allFIMs = cell(maxIterations, maxSearchSize);
-    allGoals = zeros(maxIterations, maxSearchSize);
+    allInds = cell(maxIterations, 1);
+    allFIMs = cell(maxIterations, 1);
+    allGoals = cell(maxIterations, 1);
     bestFIMs = cell(maxIterations, 1);
     bestGoals = zeros(maxIterations, 1);
 end
@@ -170,8 +171,13 @@ while remainingCount > 0 && bestGoal > opts.TerminalGoal && any(remainingBudget 
     % CurrentBlockSize is the set size of the experiments to optimize over.
     % It is equal to blockSize until the number of experiments remaining to
     % be found is less than blockSize.
-    currentBlockSize = min(blockSize, remainingCount);
     currentBudget    = min(opts.MaxGreedyBudget, remainingBudget);
+    if opts.AllowRepeats
+        currentMaxInBudget = floor(currentBudget / min(opts.Cost(remainingCons)));
+    else
+        currentMaxInBudget = find(cumsum(sort(opts.Cost(remainingCons))) <= currentBudget, 1, 'last');
+    end
+    currentBlockSize = min([blockSize, remainingCount, currentMaxInBudget]);
     
     % Combinatorics
     conList = generateBlock(remainingCons, currentBlockSize, opts.AllowRepeats, opts.Cost, currentBudget);
@@ -196,24 +202,29 @@ while remainingCount > 0 && bestGoal > opts.TerminalGoal && any(remainingBudget 
             end
         end
     else
-        % Compute expected hessians
-        newEFs = cell(nSearch,1);
-        for iSearch = 1:nSearch
-            newEFs{iSearch} = currentF;                                             % Expected information is old information...
-            for iBlock = 1:numel(conList{iSearch})
-                newEFs{iSearch} = newEFs{iSearch} + EFs{conList{iSearch}(iBlock)};  % ...plus contributions from each hypothetical experiment
-            end
-        end
-        
-        % Compute goal values
         goalValues = zeros(nSearch, 1);
-        for iSearch = 1:nSearch
-            goalValues(iSearch) = goal(newEFs{iSearch});
-        end
+       newEFs = cell(nSearch,1);
         
-        % Pick best goal
-        bestGoal = min(goalValues);
-        bestSetInd = find(bestGoal == goalValues, 1);                           % Row of conList corresponding to the minimum goal function
+        bestGoal = inf;
+        bestSetInd = 1;
+        for iSearch = 1:nSearch
+            % Compute expected hessian
+            newEF = currentF;
+            for iBlock = 1:numel(conList{iSearch})
+                newEF = newEF + EFs{conList{iSearch}(iBlock)};
+            end
+            
+            % Compute goal and keep it if it is better
+            goalValue = goal(newEF);
+            if goalValue < bestGoal
+                bestGoal = goalValue;
+                bestSetInd = iSearch;
+            end
+            
+            % Store all results
+            goalValues(iSearch) = goalValue;
+           newEFs{iSearch} = newEF;
+        end
     end
     
     % Find corresponding best set
@@ -242,10 +253,11 @@ while remainingCount > 0 && bestGoal > opts.TerminalGoal && any(remainingBudget 
     
     % Store iteration data only if it is requested
     if nargout >= 2
-        allFIMs(currentIteration, 1:nSearch)  = newEFs;
-        allGoals(currentIteration, 1:nSearch) = goalValues;
-        bestFIMs{currentIteration}            = currentF;
-        bestGoals(currentIteration)           = bestGoal;
+        allInds{currentIteration}   = conList;
+       allFIMs{currentIteration}   = newEFs;
+        allGoals{currentIteration}  = goalValues;
+        bestFIMs{currentIteration}  = currentF;
+        bestGoals(currentIteration) = bestGoal;
     end
     
     % Decrement
@@ -259,12 +271,13 @@ actual = (bestCons ~= 0);
 bestCons = bestCons(actual);
 
 if nargout >= 2
-    data.StartingFIM = F;                              % FIM of system before possible experiments are applied
-    data.AllFIMs     = EFs;                            % FIMs for each possible experiment
-    data.SearchFIMs  = allFIMs(1:currentIteration,:);  % Sum of FIMs in each search
-    data.AllGoals    = allGoals(1:currentIteration,:); % All the goal values of the possible iterations
-    data.BestFIMs    = bestFIMs(1:currentIteration);   % FIM after each iteration
-    data.BestGoals   = bestGoals(1:currentIteration);  % Goal after each iteration
+    data.StartingFIM = F;                             % FIM of system before possible experiments are applied
+    data.AllFIMs     = EFs;                           % FIMs for each possible experiment
+    data.SearchSets  = allInds(1:currentIteration);   % Each block of experiments searched
+   data.SearchFIMs  = allFIMs(1:currentIteration);   % Sum of FIMs in each search
+    data.AllGoals    = allGoals(1:currentIteration);  % All the goal values of the possible iterations
+    data.BestFIMs    = bestFIMs(1:currentIteration);  % FIM after each iteration
+    data.BestGoals   = bestGoals(1:currentIteration); % Goal after each iteration
 end
 
 end

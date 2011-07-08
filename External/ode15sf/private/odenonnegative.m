@@ -31,8 +31,9 @@ odeFcn = @local_odeFcn_nonnegative;
 % Nested function: ODE with nonnegativity constraints imposed
 %
   function yp = local_odeFcn_nonnegative(t,y,varargin)
+    ndx = idxNonNegative(y(idxNonNegative) <= 0);
+    y(ndx) = max(y(ndx),0);
     yp = feval(ode,t,y,varargin{:}); 
-    ndx = idxNonNegative( find(y(idxNonNegative) <= 0) );
     yp(ndx) = max(yp(ndx),0);
   end  % local_odeFcn_nonnegative
 % -----------------------------------------------------------

@@ -55,7 +55,7 @@ m.add.Outputs = growOutputs(m.add.Outputs, ny);
 % Add item
 m.add.Outputs(ny).Name = fixName(name);
 m.add.Outputs(ny).Expressions = fixExpression(expressions);
-nExpr = m.add.Outputs(ny).Expressions;
+nExpr = numel(m.add.Outputs(ny).Expressions);
 m.add.Outputs(ny).Values = fixOutputValues(nExpr, values, fixUnits(units));
 
 m.Ready = false;

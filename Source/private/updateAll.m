@@ -78,5 +78,5 @@ end
 % Update objective functions
 if ~isempty(obj)
     % refeshObj expects vector m, put options in cells
-    obj = refreshObj(m, con, obj, {useParams}, {useICs}, {useControls});
+    obj = refreshObj(m, con, obj, {useParams}, {useICs}, useControls);
 end

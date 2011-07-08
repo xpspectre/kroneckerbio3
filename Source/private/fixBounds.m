@@ -22,7 +22,7 @@ if useModelICs
         bounds = zeros(nT,1) + bounds;
     else
         error('KroneckerBio:BoundSize', ...
-            'LowerBound and UpperBound must be vectors the length of m.nP+m.nX, number of varible parameters, m.nP if there are no variable ICs, or scalar')
+            'LowerBound and UpperBound must be vectors the length of m.nk+m.nx, number of varible parameters, m.nP if there are no variable ICs, or scalar')
     end
 else
     % Bounds can be nk+(nx*nCon), nk+nx, nT, or nk long
@@ -43,6 +43,6 @@ else
         bounds = zeros(nT,1) + bounds;
     else
         error('KroneckerBio:BoundSize', ...
-            'LowerBound and UpperBound must be vectors the length of m.nP+(m.nX*length(con)), m.nk+m.nX, number of varible parameters, m.nP if there are no variable ICs, or scalar')
+            'LowerBound and UpperBound must be vectors the length of m.nk+(m.nx*length(con)), m.nk+m.nx, number of varible parameters, m.nk if there are no variable ICs, or scalar')
     end
 end
