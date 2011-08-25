@@ -22,8 +22,7 @@ function A = posdef(A, e)
 % This work is released under the MIT license.
 
 % Eigendecompose matrix
-[Q lambda] = eig(A);
-lambda = diag(lambda);
+[lambda Q] = infoeig(A);
 
 % Default epsilon is machine epsilon of max eigenvalue
 if nargin < 2 || isempty(e)

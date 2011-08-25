@@ -95,24 +95,28 @@ obj.Update = @update;
     function [val stopTimes] = G(sol)
         stopTimes = discreteTimes;
         diff = Tk - Tkbar;
-        val = diff.' * (VTbark \ diff);
+        val = diff.' * FTbark * diff;
     end
 
     function val = dGdk(t,sol)
         val = zeros(nk,1);
-        if normalized
-            val(UseParams) = 2 * diag(k(UseParams).^(-1)) * (VTbark \ (Tk - Tkbar));
-        else
-            val(UseParams) = 2 * (VTbark \ (Tk - kbar));
+        if t == 0
+            if normalized
+                val(UseParams) = 2 * (diag(k(UseParams).^(-1)) * (FTbark * (Tk - Tkbar)));
+            else
+                val(UseParams) = 2 * (FTbark * (Tk - kbar));
+            end
         end
     end
 
     function val = d2Gdk2(t,sol)
         val = zeros(nk,nk);
-        if normalized
-            val(UseParams,UseParams) = 2 * diag(k(UseParams).^(-1)) * (VTbark \ diag(k(UseParams).^(-1))) - 2 * diag(k(UseParams).^(-2)) * diag(VTbark \ (Tk - kbar));
-        else
-            val(UseParams,UseParams) = 2 * inv(VTbark);
+        if t == 0
+            if normalized
+                val(UseParams,UseParams) = 2 * diag(k(UseParams).^(-1)) * FTbark * diag(k(UseParams).^(-1)) - 2 * diag(k(UseParams).^(-2)) * diag(FTbark * (Tk - kbar));
+            else
+                val(UseParams,UseParams) = 2 * FTbark;
+            end
         end
     end
 
@@ -122,7 +126,7 @@ obj.Update = @update;
 %% Likelihood function
     function p = p(sol)
         diff = Tk - Tkbar;
-        p = (2*pi).^(-nTk/2) * det(VTbark).^(-1/2) * exp(-1/2 * diff.' * (VTbark \ diff));
+        p = (2*pi).^(-nTk/2) * det(VTbark).^(-1/2) * exp(-1/2 * diff.' * FTbark * diff);
     end
 
 %% Fisher information

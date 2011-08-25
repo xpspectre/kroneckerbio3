@@ -33,10 +33,10 @@ function con = ExperimentBasic(m, tF, x0, u, discontinuities, name)
 % This work is released under the MIT license.
 
 % Sanitize inputs
-if nargin < 5
-    discontinuities = [];
-    if nargin < 6
-        name = 'UnnamedExperiment';
+if nargin < 6
+    name = 'UnnamedExperiment';
+    if nargin < 5
+        discontinuities = [];
     end
 end
 

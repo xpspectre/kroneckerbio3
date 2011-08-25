@@ -107,6 +107,7 @@ opts.Verbose = max(opts.Verbose-1,0);
 % Constants
 nPosCon = numel(posCon);
 nPosObj = size(posObj,1);
+nPos = numel(posObj);
 
 %% Fix UseExperiments
 opts.UseExperiments = fixUseExperiments(opts.UseExperiments, nPosObj, nPosCon);
@@ -123,6 +124,7 @@ if opts.AllowRepeats
     maxSearchSize = nPos.^blockSize;
 else
     maxInBudget = find(cumsum(sort(opts.Cost(remainingCons))) <= opts.Budget, 1, 'last'); % Bounded by nPos
+    if isempty(maxInBudget); maxInBudget = 0; end % Budget may not allow for any experiments
     maxReturnCount = min(opts.ReturnCount, maxInBudget);
     maxInBudgetStep = floor(opts.MaxGreedyBudget / min(opts.Cost(remainingCons)));
     blockSize = min([opts.MaxGreedySize, maxReturnCount maxInBudgetStep]);
@@ -180,58 +182,44 @@ while remainingCount > 0 && bestGoal > opts.TerminalGoal && any(remainingBudget 
     currentBlockSize = min([blockSize, remainingCount, currentMaxInBudget]);
     
     % Combinatorics
-    conList = generateBlock(remainingCons, currentBlockSize, opts.AllowRepeats, opts.Cost, currentBudget);
+    clear conList goalValues
+    conList = generateBlock(nPos, remainingCons, currentBlockSize, opts.AllowRepeats, opts.Cost, currentBudget);
     nSearch = size(conList, 1); % Total number of possible sets
     
-    if nargout < 2
-        % This way takes less memory by not storing data
-        bestGoal = inf;
-        bestSetInd = 1;
-        for iSearch = 1:nSearch
-            % Compute expected hessian
-            newEF = currentF;
-            for iBlock = 1:numel(conList{iSearch})
-                newEF = newEF + EFs{conList{iSearch}(iBlock)};
-            end
-            
-            % Compute goal and keep it if it is better
-            goalValue = goal(newEF);
-            if goalValue < bestGoal
-                bestGoal = goalValue;
-                bestSetInd = iSearch;
-            end
-        end
-    else
+    if nargout >= 2
+        % Initialize search variables
         goalValues = zeros(nSearch, 1);
-       newEFs = cell(nSearch,1);
+%         newEFs = cell(nSearch,1);
+    end
+    
+    bestGoal = inf;
+    bestSetInd = 1;
+    for iSearch = 1:nSearch
+        % Compute expected hessian
+        newEF = currentF;
+        for iBlock = 1:nnz(conList(iSearch,:))
+            newEF = newEF + EFs{conList(iSearch,iBlock)};
+        end
         
-        bestGoal = inf;
-        bestSetInd = 1;
-        for iSearch = 1:nSearch
-            % Compute expected hessian
-            newEF = currentF;
-            for iBlock = 1:numel(conList{iSearch})
-                newEF = newEF + EFs{conList{iSearch}(iBlock)};
-            end
-            
-            % Compute goal and keep it if it is better
-            goalValue = goal(newEF);
-            if goalValue < bestGoal
-                bestGoal = goalValue;
-                bestSetInd = iSearch;
-            end
-            
+        % Compute goal and keep it if it is better
+        goalValue = goal(newEF);
+        if goalValue < bestGoal
+            bestGoal = goalValue;
+            bestSetInd = iSearch;
+        end
+        
+        if nargout >= 2
             % Store all results
             goalValues(iSearch) = goalValue;
-           newEFs{iSearch} = newEF;
+%             newEFs{iSearch} = newEF;
         end
     end
     
     % Find corresponding best set
-    bestSet = conList{bestSetInd};                                              % Experiments that are part of the best set (indexes of remainingCons)
-    blockInd1 = maxReturnCount - remainingCount + 1;                            % Where in bestCons to starting storing these experiment indexes
-    blockInd2 = maxReturnCount - remainingCount + numel(conList{bestSetInd});   % Where in bestCons is the last index to store
-    bestCons(blockInd1:blockInd2) = bestSet;                                    % Store values of the best set
+    bestSet = nonzeros(conList(bestSetInd,:));                    % Experiments that are part of the best set (indexes of remainingCons)
+    blockInd1 = maxReturnCount - remainingCount + 1;              % Where in bestCons to starting storing these experiment indexes
+    blockInd2 = maxReturnCount - remainingCount + numel(bestSet); % Where in bestCons is the last index to store
+    bestCons(blockInd1:blockInd2) = bestSet;                      % Store values of the best set
     
     if verbose
         for i = 1:numel(bestSet)
@@ -254,7 +242,7 @@ while remainingCount > 0 && bestGoal > opts.TerminalGoal && any(remainingBudget 
     % Store iteration data only if it is requested
     if nargout >= 2
         allInds{currentIteration}   = conList;
-       allFIMs{currentIteration}   = newEFs;
+%        allFIMs{currentIteration}   = newEFs;
         allGoals{currentIteration}  = goalValues;
         bestFIMs{currentIteration}  = currentF;
         bestGoals(currentIteration) = bestGoal;
@@ -274,17 +262,27 @@ if nargout >= 2
     data.StartingFIM = F;                             % FIM of system before possible experiments are applied
     data.AllFIMs     = EFs;                           % FIMs for each possible experiment
     data.SearchSets  = allInds(1:currentIteration);   % Each block of experiments searched
-   data.SearchFIMs  = allFIMs(1:currentIteration);   % Sum of FIMs in each search
-    data.AllGoals    = allGoals(1:currentIteration);  % All the goal values of the possible iterations
+%    data.SearchFIMs  = allFIMs(1:currentIteration);   % Sum of FIMs in each search
+    data.SearchGoals = allGoals(1:currentIteration);  % All the goal values of the possible iterations
     data.BestFIMs    = bestFIMs(1:currentIteration);  % FIM after each iteration
     data.BestGoals   = bestGoals(1:currentIteration); % Goal after each iteration
 end
 
 end
 
-function list = generateBlock(conPos, blockSize, allowRepeats, cost, budget)
+function list = generateBlock(nPos, conPos, blockSize, allowRepeats, cost, budget)
+% Minimize memory footprint of list
+if nPos < 2^8
+    conPos = uint8(conPos);
+elseif nPos < 2^16
+    conPos = uint16(conPos);
+elseif nPos < 2^32
+    conPos = uint32(conPos);
+elseif nPos < 2^64
+    conPos = uint64(conPos);
+end
+
 minCost = min(min(cost(conPos)));
-nPos = numel(conPos);
 
 % Create set of single experiments
 list = cell(blockSize,1);
@@ -323,8 +321,8 @@ for iDim = 2:blockSize
     setCost(overpriced) = [];
 end
 
-% Distribute blocks into individual cells
-list = cellfun(@(A)num2cell(A, 2), list, 'UniformOutput', false);
+% Concatenate blocks into single list, padding with zeros
+list = cellfun(@(A)cat(2, A, zeros(size(A,1), blockSize-size(A,2))), list, 'UniformOutput', false);
 list = cat(1, list{:});
 end
 

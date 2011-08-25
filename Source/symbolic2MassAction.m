@@ -8,7 +8,7 @@ name       = SymModel.Name;
 
 vSyms     = SymModel.vSyms;
 vNames    = SymModel.vNames;
-dv        = SymModel.d;
+dv        = SymModel.dv;
 vValues   = SymModel.vValues;
 
 xuSyms    = SymModel.xuSyms;

@@ -1,9 +1,9 @@
-function obj = constructObjectiveChiSquare(m, outputs, times, sd, nonNegMeasurements, measurements, perfect, name)
-%obj = constructObjectiveChiSquare(m, outputs, times, sd,
-%nonNegMeasurements, measurements, perfect)
+function obj = objectiveWeightedSumOfSquaresVarying(m, outputlist, timelist, sd, nonNegMeasurements, measurements, perfect, name)
+%obj = objectiveWeightedSumOfSquaresVarying(m, outputlist, timelist, sd,
+%nonNegMeasurements, measurements, perfect, name)
 %returns X2, chi-square, the generalized least squares statistic
 
-% sd: @(t,yInd,yVal) returns standard error given t, index of output, and
+% sd: @(t,yInd,yVal) returns standard error and gradient given t, index of output, and
 % value of output
 
 % Clean up inputs
@@ -18,9 +18,9 @@ if nargin < 8
                 if nargin < 4
                     sd = [];
                     if nargin < 3
-                        times = [];
+                        timelist = [];
                         if nargin < 2
-                            outputs = [];
+                            outputlist = [];
                             if nargin < 1
                                 m = [];
                             end
@@ -39,10 +39,10 @@ if isnumeric(m)
 end
 
 % Check inputs
-assert(isvector(outputs), 'KroneckerBio:constructObjectiveChiSquare:outputs', 'Input "outputs" must be a vector.')
-n = length(outputs);
-assert(isvector(times) && length(times) == n, 'KroneckerBio:constructObjectiveChiSquare:times', 'Input "times" must be a vector length of "outputs".')
-assert(numel(measurements) == n || isempty(measurements), 'KroneckerBio:constructObjectiveChiSquare:measurements', 'Input "measurements" must be a vector length of "outputs" or empty.')
+assert(isvector(outputlist), 'KroneckerBio:constructObjectiveChiSquare:outputlist', 'Input "outputlist" must be a vector.')
+n = length(outputlist);
+assert(isvector(timelist) && length(timelist) == n, 'KroneckerBio:constructObjectiveChiSquare:timelist', 'Input "timelist" must be a vector length of "outputlist".')
+assert(numel(measurements) == n || isempty(measurements), 'KroneckerBio:constructObjectiveChiSquare:measurements', 'Input "measurements" must be a vector length of "outputlist" or empty.')
 
 % Gut m
 temp = m;
@@ -56,16 +56,8 @@ clear temp
 nx = m.nx;
 nk = m.nk;
 
-% Find unique times
-discreteTimes = vec(unique(times)).';
-
-% Compute covariance matrix
-if ~isempty(measurements)
-    V = sparse(n,n);
-    for j = 1:n
-        V(j,j) = sd(times(j), outputs(j), measurements(j))^2;
-    end
-end
+% Find unique timelist
+discreteTimes = vec(unique(timelist)).';
 
 % Default is nonNegMeasurements
 if isempty(nonNegMeasurements)
@@ -90,20 +82,10 @@ obj.Linked = 0;
 
 obj.G = @G;
 obj.dGdx = @dGdx;
-obj.dGdk = @dGdk;
 obj.d2Gdx2 = @d2Gdx2;
-obj.d2Gdk2 = @d2Gdk2;
-obj.d2Gdkdx = @d2Gdkdx;
-obj.d2Gdxdk = @d2Gdxdk;
-
-% obj.H = @H;
-% obj.Hn = @Hn;
-% obj.EH = @EH;
-% obj.EHn = @EHn;
 
 obj.F = @F;
 obj.Fn = @Fn;
-%obj.FnSimbio = @FnSimbio;
 obj.p = @p;
 obj.pvalue = @pvalue;
 
@@ -112,7 +94,7 @@ obj.AddData = @AddData;
 obj.AddExpectedData = @AddExpectedData;
 obj.QuantifyPrediction = @QuantifyPrediction;
 
-obj.Update = @update;
+obj.Update = @Update;
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Parameter fitting functions %%%%%
@@ -139,19 +121,16 @@ obj.Update = @update;
             
             % Get e for every point evaluated
             e = zeros(n,1);
+            sigma = zeros(n,1);
             for i = 1:n
-                t = discreteTimes == times(i);
-                e(i,1) = sol.C1(outputs(i),:) * x(:,t) + sol.C2(outputs(i),:) * u(:,t) + sol.c(outputs(i),:) - measurements(i);
+                t = discreteTimes == timelist(i);
+                y = sol.C1(outputlist(i),:) * x(:,t) + sol.C2(outputlist(i),:) * u(:,t) + sol.c(outputlist(i),:);
+                e(i) = y - measurements(i);
+                sigma(i) = sd(timelist(i), outputlist(i), y);
             end
             
-            % Sort by absolute value
-            [unused I] = sort(abs(e.'*sqrt(V)));
-            e = e(I);
-            Vsort = diag(V); % Extract diagonal
-            Vsort = spdiags(Vsort(I),0,n,n); % Replace diagonal with sorted version
-            
-            % Compute chi-square
-            val = e'*(Vsort\e);
+            % Compute chi-square: G = e'*W*e
+            val = sum((e./sigma).^2);
             
             if nargout >= 2
                 discrete = discreteTimes;
@@ -165,7 +144,7 @@ obj.Update = @update;
 
     function val = dGdx(t,sol)
         %Find all data points that have a time that matches t
-        ind = find(t == times);
+        ind = find(t == timelist);
         tlength = length(ind);
         if tlength > 0
             % Evaluate the ODE solver structure
@@ -184,202 +163,50 @@ obj.Update = @update;
             % Compute e for each datapoint that has a matching time to t
             e = zeros(tlength,1);
             C1 = zeros(tlength,nx);
+            sigma = zeros(tlength,1);
+            dsigmady = zeros(tlength,1);
             for i = 1:tlength
-                C1(i,:) = sol.C1(outputs(ind(i)),:);
-                e(i,1) = C1(i,:)*x + sol.C2(outputs(ind(i)),:) * u + sol.c(outputs(ind(i)),:) - measurements(ind(i));
+                C1(i,:) = sol.C1(outputlist(ind(i)),:);
+                y = C1(i,:)*x + sol.C2(outputlist(ind(i)),:) * u + sol.c(outputlist(ind(i)),:);
+                e(i,1) = y - measurements(ind(i));
+                [sigma(i) dsigmady(i)] = sd(timelist(ind(i)), outputlist(ind(i)), y); %#ok<RHSFN>
             end
             
-            % Sort by absolute value
-            Vsort = V(ind,ind);
-            [unused I] = sort(abs(e.'*sqrt(Vsort)));
-            e = e(I);
-            C1 = C1(I,:);
-            Vsort = diag(Vsort); % Extract diagonal
-            Vsort = spdiags(Vsort(I),0,tlength,tlength); % Replace diagonal with sorted version
-            
-            % Compute dX2/dx = 2*e'*W*dy/dx = 2*e'*W*C
-            val = vec(2*e'*(Vsort\C1));
+            % Compute dGdx = 2*e'*W*C1 + e'*dWdx*e
+            val = vec(2 * (e .* sigma.^-2).' * C1 + -2 * (e.^2).' * bsxfun(@times, dsigmady .* sigma.^-3, C1));
         else
             val = zeros(nx, 1);
         end
     end
 
-    function val = dGdk(t,sol)
-        val = sparse(nk, 1);
-    end
-
     function val = d2Gdx2(t,sol)
+        % THIS STILL NEEDS TO BE VERIFIED
         %Find all data points that have a time that matches t
-        ind = find(t == times);
+        ind = find(t == timelist);
         tlength = length(ind);
         if tlength < 0
-            %compute d2X2/dx2 = 2*C1'*W*C1
             C1 = zeros(tlength,nx);
+            sigma = zeros(tlength,1);
+            dsigmady = zeros(tlength,1);
+            d2sigmady2 = zeros(tlength,1);
             for i = 1:tlength
-                C1(i,:) = sol.C1(outputs(ind(i)),:);
+                C1(i,:) = sol.C1(outputlist(ind(i)),:);
+                y = C1(i,:)*x + sol.C2(outputlist(ind(i)),:) * u + sol.c(outputlist(ind(i)),:);
+                [sigma(i) dsigmady(i) d2sigmady2(i)] = sd(timelist(ind(i)), outputlist(ind(i)), y).^2; %#ok<RHSFN>
             end
-            val = 2*C1*(V(ind,ind)\C1);
+            
+            % Compute d2Gdx2 = 2*C1'*W*C1 + 4*e'*dWdx*C1 + e'*d2Wdx2*e
+            val = 2 * C1.' * bsxfun(@times, sigma.^-1,  C1) + ...
+                4 * (bsxfun(@times, e, bsxfun(@times, dsigmady .* sigma.^-3, C1))).' * C1 + ...
+                C1.' * bsxfun(@times, e.^2, bsxfun(@times, -2 * (d2sigmady2 .* sigma.^-3 + -3 * dsigmady.^2 .* sigma.^-4), C1));
         else
             val = zeros(nx, nx);
         end
     end
 
-    function val = d2Gdk2(t,sol)
-        val = sparse(nk, nk);
-    end
-
-    function val = d2Gdxdk(t,sol)
-        val = sparse(nk, nx);
-    end
-
-    function val = d2Gdkdx(t,sol)
-        val = sparse(nx, nk);
-    end
-
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Information theory %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%%Hessian of the objective function
-%     function val = H(sol, dxdpSol, dx2dp2Sol)
-%         nP = size(dxdpSol.y, 1) / nx;
-%         
-%         % Evaluate the ODE solver's sol structure to get x(time)
-%         x = deval(sol, times, 1:nx);
-%         dxdp = deval(dxdpSol, times, 1:nx*nP);
-%         d2xdp2 = deval(dx2dp2Sol, times, 1:nx*nP*nP);
-% 
-%         % Get values for every point
-%         e = zeros(n,1);
-%         dydp = zeros(n, nP);
-%         d2ydp2 = zeros(n, nP*nP);
-%         for i = 1:n
-%             iC = m.c(outputs(i),:);
-%             % Compute e
-%             e(i) = iC*x(:,i) - measurements(i);
-%             
-%             % Compute dy/dp
-%             dydp(i,:) = iC * reshape(dxdp(:,i), nx, nP);
-%             
-%             % Compute d2y/dp2
-%             d2ydp2(i,:) = iC * reshape(d2xdp2(:,i), nx, nP*nP);
-%         end
-%         
-%         % Compute hessian
-%         val =  e.' * (V \ d2ydp2);
-%         val = reshape(val, nP, nP);
-%         val = val + dydp.' * (V \ dydp);
-%         val = 2 * symmat(val);
-%     end
-% 
-% %% Normalized hessian of the objective function
-%     function val = Hn(sol, dxdpSol, dx2dp2Sol, p)
-%         nP = size(dxdpSol.y, 1) / nx;
-%         
-%         % Evaluate the ODE solver's sol structure to get x(time)
-%         x = deval(sol, times, 1:nx);
-%         dxdp = deval(dxdpSol, times, 1:nx*nP);
-%         d2xdp2 = deval(dx2dp2Sol, times, 1:nx*nP*nP);
-%         
-%         % Get values for every point
-%         e = zeros(n,1);
-%         dydp = zeros(n, nP); % y_p
-%         d2ydp2 = zeros(n, nP*nP); % y_pp
-%         for i = 1:n
-%             iC = m.c(outputs(i),:);
-%             % Compute e
-%             e(i) = iC*x(:,i) - measurements(i);
-%             
-%             % Compute dy/dp
-%             dydp(i,:) = iC * reshape(dxdp(:,i), nx, nP);
-%             
-%             % Compute d2y/dp2
-%             d2ydp2(i,:) = iC * reshape(d2xdp2(:,i), nx, nP*nP); % auto-reshape invoked
-%         end
-%         d2ydp2 = reshape(d2ydp2, n*nP, nP); % yp_p
-%         
-%         % Construct normalization matrices
-%         dpdlnp = spdiags(p,0,sparse(nP,nP)); % p along the diagonal
-%         linInd = (0:(nP-1)).' * (nP*nP+nP+1) + 1; % linear indexes for putting p into d2pdlnp2
-%         d2pdlnp2 = sparse(nP, nP*nP);
-%         d2pdlnp2(linInd) = p; % p along the 3D diagonal, or 2D along the linear indexes
-%         
-%         % Compute normalized hessian
-%         dydlnp = dydp*dpdlnp; % n_p
-%         val = dpdlnp*dpdlnp; % p_p
-%         val = d2ydp2*val; % np_p
-%         val = val + reshape( dydp*d2pdlnp2, n*nP,nP); % np_p
-%         val = reshape(val, n,nP*nP); % n_pp
-%         val = e.' * (V \ val); % _pp
-%         val = reshape(val, nP,nP); % p_p
-%         val = val + dydlnp.' * (V \ dydlnp); % p_p
-%         val = 2 * symmat(val); % p_p
-%     end
-% 
-% %% Expected hessian of the objective function
-%     function val = EH(dxdpSol)
-%         nP = (size(dxdpSol.y, 1) - nx) / nx;
-%         
-%         % Evaluate the ODE solver structure
-%         joint = deval(dxdpSol, times, 1:(nx*(nP+1))); % j_t
-%         x = joint(1:nx,:); % x_t
-%         dxdp = joint((nx+1):(nx*(nP+1)),:); % xp_t
-%         
-%         % Get dydp for every point
-%         y = zeros(n,1);
-%         dydp = zeros(n, nP);
-%         EV = sparse(n,n);
-%         for i = 1:n
-%             iC = m.c(outputs(i),:);
-%             % Compute y
-%             y(i) = iC*x(:,i);
-%             
-%             % Compute dy/dp
-%             dydp(i,:) = iC * reshape(dxdp(:,i), nx, nP);
-%             
-%             % Compute expected V matrix
-%             EV(i,i) = sd(times(i), outputs(i), y(i))^2;
-%         end
-% 
-%         % Compute expected normalized hessian
-%         val = dydp.' * (EV \ dydp);
-%         val = 2 * symmat(val);
-%     end
-% 
-% %% Expected normalized hessian of the objective function
-%     function val = EHn(dxdpSol, p)
-%         nP = (size(dxdpSol.y, 1) - nx) / nx;
-%         
-%         % Evaluate the ODE solver structure
-%         joint = deval(dxdpSol, times, 1:(nx*(nP+1))); % j_t
-%         x = joint(1:nx,:); % x_t
-%         dxdp = joint((nx+1):(nx*(nP+1)),:); % xp_t
-%         
-%         % Get dydp for every point
-%         y = zeros(n,1);
-%         dydp = zeros(n, nP);
-%         EV = sparse(n,n);
-%         for i = 1:n
-%             iC = m.c(outputs(i),:);
-%             % Compute y
-%             y(i) = iC*x(:,i);
-%             
-%             % Compute dy/dp
-%             dydp(i,:) = iC * reshape(dxdp(:,i), nx, nP);
-%             
-%             % Compute expected V matrix
-%             EV(i,i) = sd(times(i), outputs(i), y(i))^2;
-%         end
-% 
-%         % Construct normalization matrix
-%         val = spdiags(p,0,sparse(nP,nP)); % p along the diagonal
-%         
-%         % Compute expected normalized hessian
-%         val = dydp*val;
-%         val = val.' * (EV \ val);
-%         val = 2 * symmat(val);
-%     end
-
 %% Fisher information matrix
     function val = F(sol)
         nT = (size(sol.y, 1) - nx) / nx;
@@ -409,19 +236,19 @@ obj.Update = @update;
         dydT = zeros(n, nT);
         EV = zeros(n,1);
         for i = 1:n
-            ind = find(discreteTimes == times(i), 1);
+            ind = find(discreteTimes == timelist(i), 1);
             ix = x(:,ind);
             idxdT = reshape(dxdT(:,ind), nx,nT); %x_T
-            iC = sol.C1(outputs(i),:);
+            iC = sol.C1(outputlist(i),:);
             
             % Compute this y
-            y = iC*ix + sol.C2(outputs(i),:)*u(:,ind) + sol.c(outputs(i));
+            y = iC*ix + sol.C2(outputlist(i),:)*u(:,ind) + sol.c(outputlist(i));
             
             % Compute dy/dT
             dydT(i,:) = iC * idxdT;
             
             % Compute expected V matrix
-            EV(i) = sd(times(i), outputs(i), y)^2;
+            EV(i) = sd(timelist(i), outputlist(i), y)^2;
         end
         
         EV = spdiags(EV,0,n,n);
@@ -460,19 +287,19 @@ obj.Update = @update;
         dydT = zeros(n, nT);
         EV = zeros(n,1);
         for i = 1:n
-            ind = find(discreteTimes == times(i), 1);
+            ind = find(discreteTimes == timelist(i), 1);
             ix = x(:,ind);
             idxdT = reshape(dxdT(:,ind), nx,nT); %x_T
-            iC = sol.C1(outputs(i),:);
+            iC = sol.C1(outputlist(i),:);
             
             % Compute this y
-            y = iC*ix + sol.C2(outputs(i),:)*u(:,ind) + sol.c(outputs(i));
+            y = iC*ix + sol.C2(outputlist(i),:)*u(:,ind) + sol.c(outputlist(i));
             
             % Compute dy/dT
             dydT(i,:) = iC * idxdT;
             
             % Compute expected V matrix
-            EV(i) = sd(times(i), outputs(i), y)^2;
+            EV(i) = sd(timelist(i), outputlist(i), y)^2;
         end
         
         EV = spdiags(EV,0,n,n);
@@ -519,40 +346,6 @@ obj.Update = @update;
         pval = chi2pvalue(chi2, ntot);
     end
 
-%% Fisher information matrix - SimBiology version
-%     function val = FnSimbio(simData, p)
-%         % simData is stack of species and sensitivities
-%         nP = (size(simData.Data, 2) - nx) / nx;
-%         
-%         % Use linear interpolation to evaluate the SimData
-%         x = piecewiselinear(times, simData.Time, simData.Data(:,1:nx)).';
-%         dxdp = piecewiselinear(times, simData.Time, simData.Data(:,(nx+1):end)).';
-%         
-%         % Get dydp for every point
-%         y = zeros(n,1);
-%         dydp = zeros(n, nP);
-%         EV = sparse(n,n);
-%         for i = 1:n
-%             iC = m.c(outputs(i),:);
-%             % Compute y
-%             y(i) = iC*x(:,i);
-%             
-%             % Compute dy/dp
-%             dydp(i,:) = iC * reshape(dxdp(:,i), nx, nP);
-%             
-%             % Compute expected V matrix
-%             EV(i,i) = sd(times(i), outputs(i), y(i))^2;
-%         end
-% 
-%         % Construct normalization matrix
-%         val = spdiags(p,0,sparse(nP,nP)); % p along the diagonal
-%         
-%         % Compute expected normalized hessian
-%         val = dydp*val;
-%         val = val.' * (EV \ val);
-%         val = symmat(val);
-%     end
-
 %% AddData
     function objNew = AddData(sol)
         nx = size(sol.C1,1);
@@ -571,16 +364,16 @@ obj.Update = @update;
         % New measurements
         newMeasurements = zeros(n,1);
         for i = 1:n
-            t = discreteTimes == times(i);
-            newMeasurements(i) = sol.C1(outputs(i),:) * x(:,t) + sol.C2(outputs(i),:) * u(:,t) + sol.c(outputs(i),:);
-            newMeasurements(i) = newMeasurements(i) + randn*sd(times(i),outputs(i),newMeasurements(i));
+            t = discreteTimes == timelist(i);
+            newMeasurements(i) = sol.C1(outputlist(i),:) * x(:,t) + sol.C2(outputlist(i),:) * u(:,t) + sol.c(outputlist(i),:);
+            newMeasurements(i) = newMeasurements(i) + randn*sd(timelist(i),outputlist(i),newMeasurements(i));
         end
         
         if nonNegMeasurements
             newMeasurements(newMeasurements < 0) = 0;
         end
         
-        objNew = constructObjectiveChiSquare(m, outputs, times, sd, nonNegMeasurements, newMeasurements, false);
+        objNew = objectiveWeightedSumOfSquaresVarying(m, outputlist, timelist, sd, nonNegMeasurements, newMeasurements, false);
     end
 
 %% AddExpectedData
@@ -599,12 +392,12 @@ obj.Update = @update;
         % New measurements
         newMeasurements = zeros(n,1);
         for i = 1:n
-            tInd = discreteTimes == times(i);
-            newMeasurements(i) = sol.C1(outputs(i),:) * x(:,tInd) + sol.C2(outputs(i),:) * u(:,tInd) + sol.c(outputs(i),:);
+            tInd = discreteTimes == timelist(i);
+            newMeasurements(i) = sol.C1(outputlist(i),:) * x(:,tInd) + sol.C2(outputlist(i),:) * u(:,tInd) + sol.c(outputlist(i),:);
         end
         
         % Build new objective function with perfect data
-        objNew = constructObjectiveChiSquare(m, outputs, times, sd, nonNegMeasurements, newMeasurements, true);
+        objNew = objectiveWeightedSumOfSquaresVarying(m, outputlist, timelist, sd, nonNegMeasurements, newMeasurements, true);
     end
 
 %% QuantifyPrediction
@@ -635,12 +428,12 @@ obj.Update = @update;
             x2 = deval(sol2, discreteTimes, 1:nx); % x_t
         end
         
-        % Convert to outputs
+        % Convert to outputlist
         y1 = zeros(n,1);
         y2 = zeros(n,1);
         for i = 1:n
-            y1(i,1) = m.c(outputs(i),:)*x1(:,discreteTimes == times(i));
-            y2(i,1) = m.c(outputs(i),:)*x2(:,discreteTimes == times(i));
+            y1(i,1) = m.c(outputlist(i),:)*x1(:,discreteTimes == timelist(i));
+            y2(i,1) = m.c(outputlist(i),:)*x2(:,discreteTimes == timelist(i));
         end
         
         switch lower(type)
@@ -652,12 +445,12 @@ obj.Update = @update;
                 x1 = max1 * x1;
                 x2 = max1 * x2;
                 
-                % Convert to outputs
+                % Convert to outputlist
                 y1 = zeros(n,1);
                 y2 = zeros(n,1);
                 for i = 1:n
-                    y1(i,1) = m.c(outputs(i),:)*x1(:,discreteTimes == times(i));
-                    y2(i,1) = m.c(outputs(i),:)*x2(:,discreteTimes == times(i));
+                    y1(i,1) = m.c(outputlist(i),:)*x1(:,discreteTimes == timelist(i));
+                    y2(i,1) = m.c(outputlist(i),:)*x2(:,discreteTimes == timelist(i));
                 end
                 
                 % Difference
@@ -675,12 +468,12 @@ obj.Update = @update;
                 x1(isnan(x1)) = 0;
                 x2(isnan(x2)) = 0;
                 
-                % Convert to outputs
+                % Convert to outputlist
                 y1 = zeros(n,1);
                 y2 = zeros(n,1);
                 for i = 1:n
-                    y1(i,1) = m.c(outputs(i),:)*x1(:,discreteTimes == times(i));
-                    y2(i,1) = m.c(outputs(i),:)*x2(:,discreteTimes == times(i));
+                    y1(i,1) = m.c(outputlist(i),:)*x1(:,discreteTimes == timelist(i));
+                    y2(i,1) = m.c(outputlist(i),:)*x2(:,discreteTimes == timelist(i));
                 end
                 
                 % Difference
@@ -698,12 +491,12 @@ obj.Update = @update;
                 x1(isnan(x1)) = 0;
                 x2(isnan(x2)) = 0;
                 
-                % Convert to outputs
+                % Convert to outputlist
                 y1 = zeros(n,1);
                 y2 = zeros(n,1);
                 for i = 1:n
-                    y1(i,1) = m.c(outputs(i),:)*x1(:,discreteTimes == times(i));
-                    y2(i,1) = m.c(outputs(i),:)*x2(:,discreteTimes == times(i));
+                    y1(i,1) = m.c(outputlist(i),:)*x1(:,discreteTimes == timelist(i));
+                    y2(i,1) = m.c(outputlist(i),:)*x2(:,discreteTimes == timelist(i));
                 end
                 
                 % Difference
@@ -713,8 +506,8 @@ obj.Update = @update;
     end
 
 %% Update
-    function objNew = update(m, con, UseParams, UseICs, UseControls)
-        objNew = constructObjectiveChiSquare(m, outputs, times, sd, nonNegMeasurements, measurements, perfect);
+    function objNew = Update(m, con, UseParams, UseICs, UseControls)
+        objNew = objectiveWeightedSumOfSquaresVarying(m, outputlist, timelist, sd, nonNegMeasurements, measurements, perfect);
     end
 
 %% Expected goal function
@@ -722,6 +515,7 @@ obj.Update = @update;
 % measurements as the bias. If measurements is unset, there is assumed to
 % be no bias.
     function val = EG(sol)
+        error%not implemented yet
         % Evaluate the ODE solver structure
         if isempty(sol.idata)
             % The solution is already discretized
@@ -742,8 +536,8 @@ obj.Update = @update;
         % Get bias d for every point evaluated
         d = zeros(n,1);
         for i = 1:n
-            t = discreteTimes == times(i);
-            d(i,1) = sol.C1(outputs(i),:) * x(:,t) + sol.C2(outputs(i),:) * u(:,t) + sol.c(outputs(i),:) - measurements(i);
+            t = discreteTimes == timelist(i);
+            d(i,1) = sol.C1(outputlist(i),:) * x(:,t) + sol.C2(outputlist(i),:) * u(:,t) + sol.c(outputlist(i),:) - measurements(i);
         end
         
         % Sort by absolute value

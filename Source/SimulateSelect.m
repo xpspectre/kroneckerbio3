@@ -74,12 +74,15 @@ function [varargout] = SimulateSelect(m, con, tGet, opts)
 %% Work-up
 % Clean up inputs
 assert(nargout <= 4, 'KroneckerBio:Simulate:FourOrFewerOutputs', 'Simulate must have between 0 and 4 outputs.')
-if nargin < 3
+if nargin < 4
     opts = [];
-    if nargin < 2
-        con = [];
-        if nargin < 1
-            m = [];
+    if nargin < 3
+        tGet = [];
+        if nargin < 2
+            con = [];
+            if nargin < 1
+                m = [];
+            end
         end
     end
 end

@@ -18,7 +18,6 @@ infInd  = find(diag(F) == inf);
 % Invert non-special portion of F
 invertableInd = true(nT,1);
 invertableInd([zeroInd;infInd]) = false;
-
 F = posdef(F(invertableInd,invertableInd));
 F = inv(F);
 

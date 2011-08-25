@@ -1,4 +1,8 @@
 function useExperiments = ParameterExperimentElimination(m, con, obj, conPos, objPos, opts, F, EFs)
+%ParameterExperimentElimination Remove experiments from consideration in
+%   optimal experimental design based on the ability of some experiments to
+%   provide greater information in all directions.
+
 % Clean up inputs
 assert(nargin >= 6, 'KroneckerBio:BestParameterExperiment:AtLeastSixInputs', 'FindBestExperiment requies at least 6 input arguments.')
 if nargin < 8
@@ -42,24 +46,18 @@ if isempty(EFs)
     [unused EFs] = ObjectiveInformation(m, conPos, objPos, opts);
 end
 
-%% Generate all information singles
-%EFsingles = cellfun(@plus, repmat({F}, size(EFs)), EFs, 'UniformOutput', false);
-%EFsingles = cellfun(@plus, repmat({eye(nT)}, size(EFs)), EFs, 'UniformOutput', false);
-EFsingles = EFs;
-
 %% Single elimination
-rCons = numel(remainingCons);
-conList = remainingCons(combinator(rCons, 2, 'c', 'n'));   % Generate list of pairs of experiments, no repeats
+conList = remainingCons(combinator(nPos, 2, 'c', 'n')); % Generate list of pairs of experiments, no repeats
 for iPos = 1:size(conList,1)
     firstCon = conList(iPos,1);
     secondCon = conList(iPos,2);
     [iObj1 iCon1] = ind2sub([nPosObj nPosCon], firstCon);
     [iObj2 iCon2] = ind2sub([nPosObj nPosCon], secondCon);
     
-    firstZeros  = all(EFsingles{firstCon} == 0);
-    secondZeros = all(EFsingles{secondCon} == 0);
-    firstInf    = any(EFsingles{firstCon} == inf);
-    secondInf   = any(EFsingles{secondCon} == inf);
+    firstZeros  = all(EFs{firstCon} == 0);
+    secondZeros = all(EFs{secondCon} == 0);
+    firstInf    = any(EFs{firstCon} == inf);
+    secondInf   = any(EFs{secondCon} == inf);
     
     % Domination: 0 tied, 1 first dominates, 2 second dominates, -1 complimentary
     if all(firstZeros == secondZeros)
@@ -81,46 +79,11 @@ for iPos = 1:size(conList,1)
         infDom = -1;
     end
     
-    % Only continue if they are not already mutually excllusive
-%     if ((zeroDom == 1 || zeroDom == 0) && (infDom == 1 || infDom == 0) && (opts.Cost(firstCon) <= opts.Cost(secondCon))) || ...
-%             (zeroDom == 2 || zeroDom == 0) && (infDom == 2 || infDom == 0) && (opts.Cost(firstCon) >= opts.Cost(secondCon))
-%         % Compute dominance in sensible parameter space
-%         % Invert
-%         Vfirst  = infoinv(EFsingles{firstCon});
-%         Vsecond = infoinv(EFsingles{secondCon});
-%         
-%         % Remove directions already under consideration
-%         keepDir = ~(firstZeros | secondZeros | firstInf | secondInf);
-%         keepSize = sum(keepDir);
-%         Vfirst  = Vfirst(keepDir,keepDir);
-%         Vsecond = Vsecond(keepDir,keepDir);
-%         
-%         % Eigendecompose
-%         [sigmafirst Qfirst]   = infoeig(Vfirst);
-%         [sigmasecond Qsecond] = infoeig(Vsecond);
-%         
-%         % Rotate second to basis of first
-%         Ftransformed = (spdiags(sqrt(sigmasecond), 0, keepSize, keepSize) * Qsecond.') * (Qfirst * spdiags(sqrt(1./sigmafirst), 0, keepSize, keepSize));
-%         Ftransformed = Ftransformed.' * Ftransformed;
-%         
-%         % Extract eigenvalues
-%         sigmatransformed = infoeig(Ftransformed);
-%         
-%         % Compare for dominance
-%         if all(sigmatransformed >= 1 - 1e-6) && (zeroDom == 1 || zeroDom == 0) && (infDom == 1 || infDom == 0) && (opts.Cost(firstCon) <= opts.Cost(secondCon))
-%             if verbose; fprintf('%s %s (#%i) dominates %s %s (#%i)\n', conPos(iCon1).Name, objPos(firstCon).Name, firstCon, conPos(iCon2).Name, objPos(secondCon).Name, secondCon); end
-%             useExperiments(secondCon) = false;
-%         elseif all(sigmatransformed <= 1 + 1e-6) && (zeroDom == 2 || zeroDom == 0) && (infDom == 2 || infDom == 0) && (opts.Cost(firstCon) >= opts.Cost(secondCon))
-%             if verbose; fprintf('%s %s (#%i) dominates %s %s (#%i)\n', conPos(iCon2).Name, objPos(secondCon).Name, secondCon, conPos(iCon1).Name, objPos(firstCon).Name, firstCon); end
-%             useExperiments(firstCon) = false;
-%         end
-%     end
-
     % Only continue if they are not already mutually exclusive
     if ((zeroDom == 1 || zeroDom == 0) && (infDom == 1 || infDom == 0) && (opts.Cost(firstCon) <= opts.Cost(secondCon))) || ...
             (zeroDom == 2 || zeroDom == 0) && (infDom == 2 || infDom == 0) && (opts.Cost(firstCon) >= opts.Cost(secondCon))
         % Find difference in information between experiments
-        Fdiff = EFsingles{firstCon} - EFsingles{secondCon};
+        Fdiff = EFs{firstCon} - EFs{secondCon};
         
         % Eigendecompose the difference
         lambdadiff = infoeig(Fdiff);
