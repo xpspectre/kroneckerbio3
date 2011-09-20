@@ -1,21 +1,30 @@
 function [GTolRatio DTolRatio] = OptimalAbsTol(m, con, obj, opts)
+% Clean up inputs
+assert(nargin >= 3, 'KroneckerBio:OptimalAbsTol:TooFewInputs', 'OptimalAbsTol requires at least 3 input arguments')
+if nargin < 4
+    opts = [];
+end
 
-%% Options
-defaultOpts.Coverage                = 1;
+assert(isscalar(m), 'KroneckerBio:OptimalAbsTol:MoreThanOneModel', 'The model structure must be scalar')
 
-defaultOpts.UseModelICs             = true;
-defaultOpts.UseModelInputs          = true;
-defaultOpts.UseParams               = 1:m.nk;
-defaultOpts.UseICs                  = [];
-defaultOpts.UseControls             = [];%TODO
+% Default options
+defaultOpts.Verbose        = 1;
 
-defaultOpts.ObjWeights              = ones(size(obj));
-defaultOpts.Normalized              = true;
-defaultOpts.UseAdjoint              = false;
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
+defaultOpts.UseModelICs    = false;
+defaultOpts.UseModelInputs = false;
 
-defaultOpts.RelTol                  = NaN; % in fixRelTol
-defaultOpts.AbsTol                  = NaN; % in fixAbsTol
-defaultOpts.Verbose                 = 1;
+defaultOpts.UseParams      = 1:m.nk;
+defaultOpts.UseICs         = [];
+defaultOpts.UseControls    = [];
+
+defaultOpts.ObjWeights     = ones(size(obj));
+
+defaultOpts.Normalized     = true;
+defaultOpts.UseAdjoint     = true;
+
+defaultOpts.Coverage       = 1;
 
 opts = mergestruct(defaultOpts, opts);
 
@@ -28,13 +37,16 @@ nk = m.nk;
 nCon = numel(con);
 nObj = size(obj,1);
 
-% Ensure UseRates is column vector of logical indexes
+% Ensure UseParams is logical vector
 [opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
 
-% Ensure UseICs is a matrix of logical indexes
+% Ensure UseICs is a logical matrix
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 
-nT = nTk + nTx;
+% Ensure UseControls is a cell vector of logical vectors
+[opts.UseControls nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, cat(1,con.nq));
+
+nT = nTk + nTx + nTq;
 
 %% Integration type: simple, continuous, complex, or both
 % Fix integration type

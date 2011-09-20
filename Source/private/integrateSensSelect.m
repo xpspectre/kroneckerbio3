@@ -2,9 +2,10 @@ function sol = integrateSensSelect(m, con, tGet, opts)
 
 % Constants
 nx = m.nx;
-nTk = sum(sum(opts.UseParams));
+nTk = sum(opts.UseParams);
 nTx = sum(sum(opts.UseICs));
-nT  = nTk + nTx;
+nTq = sum(opts.UseControls{1});
+nT  = nTk + nTx + nTq;
 
 % Construct system
 [der, jac] = constructSystem();
@@ -16,15 +17,19 @@ if ~con.SteadyState
     else
         x0 = con.x0;
     end
+    
     % Initial effect of rates on sensitivities is 0
     dxdT0 = zeros(nx, nTk); % Active rate parameters
     
     % Initial effect of ics on sensitivities is 1 for that state
-    dxdx0                = zeros(nx,nTx);
-    dxdx0(opts.UseICs,:) = eye(nTx);
+    dxdTx0                = zeros(nx,nTx);
+    dxdTx0(opts.UseICs,:) = eye(nTx);
+    
+    % Initial effect of qs on sensitivities is 0
+    dxdTq = zeros(nx, nTq);
     
     % Combine them into a vector
-    ic = [x0; vec([dxdT0, dxdx0])];
+    ic = [x0; vec([dxdT0, dxdTx0, dxdTq])];
 else
     % Run to steady-state first
     ic = steadystateSens(m, con, opts);
@@ -59,9 +64,16 @@ sol.c  = m.c;
         
         f       = m.f;
         dfdx    = m.dfdx;
+        dfdu    = m.dfdu;
         dfdT    = @dfdTSub;
         d2fdx2  = m.d2fdx2;
+        d2fdudx = m.d2fdudx;
         d2fdTdx = @d2fdTdxSub;
+        if opts.UseModelInputs
+            dudq = m.dudq;
+        else
+            dudq = con.dudq;
+        end
         
         der = @derivative;
         jac = @jacobian;
@@ -96,16 +108,17 @@ sol.c  = m.c;
         
         % Modifies dfdk to relate only to the parameters of interest
         function val = dfdTSub(t, x, u)
-            val = m.dfdk(t, x, u);
-            val = [val(:, opts.UseParams) zeros(nx, nTx)];
+            val = m.dfdk(t,x,u);
+            dfdq = dfdu(t,x,u) * dudq(t);
+            val = [val(:,opts.UseParams) zeros(nx, nTx) dfdq(:,opts.UseControls{1})];
         end
         
         % Modifies d2fdkdx to relate only to the parameters of interest
         function val = d2fdTdxSub(t, x, u)
             val = m.d2fdkdx(t,x,u);
-            val = [val(:, opts.UseParams) zeros(nx*nx, nTx)];
+            d2fdqdx = d2fdudx(t,x,u) * dudq(t);
+            val = [val(:,opts.UseParams) zeros(nx*nx, nTx) d2fdqdx(:,opts.UseControls{1})];
         end
-        
     end
 
 end

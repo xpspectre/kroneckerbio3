@@ -1,10 +1,6 @@
 function [H, All] = FiniteObjectiveHessian(m, con, obj, opts)
-%FINITEOBJECTIVEHESSIAN Compute the hessian of an objective function by
-%   finite difference steps.
-%
-%   Given a model and experimental conditions, this function computes the
-%   double derivative of an objective function with respect to the
-%   parameters.
+%FiniteObjectiveHessian Compute the hessian of an objective function by
+%   the finite difference approximation
 %
 %   Mathematically: H = dG/dp2 or H = dG/dlnp2
 %
@@ -55,20 +51,29 @@ function [H, All] = FiniteObjectiveHessian(m, con, obj, opts)
 
 %% Work-up
 % Clean up inputs
-assert(nargin >= 3, 'KroneckerBio:FiniteObjectiveHessian:AtLeastThreeInputs', 'FiniteObjectiveHessian requires at least 3 input arguments.')
+assert(nargin >= 3, 'KroneckerBio:FiniteObjectiveHessian:AtLeastThreeInputs', 'FiniteObjectiveHessian requires at least 3 input arguments')
 if nargin < 4
 	opts = [];
 end
 
-% Options
-defaultOpts.UseModelICs = true;
-defaultOpts.UseParams	= 1:m.nP;
-defaultOpts.UseICs		= [];
-defaultOpts.Normalized  = true;
-defaultOpts.ObjWeights  = ones(size(obj));
-defaultOpts.RelTol      = NaN;
-defaultOpts.AbsTol      = NaN;
-defaultOpts.Verbose     = 0;
+assert(isscalar(m), 'KroneckerBio:FiniteObjectiveHessian:MoreThanOneModel', 'The model structure must be scalar')
+
+% Default options
+defaultOpts.Verbose        = 1;
+
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
+defaultOpts.UseModelICs    = false;
+defaultOpts.UseModelInputs = false;
+
+defaultOpts.UseParams      = 1:m.nk;
+defaultOpts.UseICs         = [];
+defaultOpts.UseControls    = [];
+
+defaultOpts.ObjWeights     = ones(size(obj));
+
+defaultOpts.Normalized     = true;
+defaultOpts.UseAdjoint     = true;
 
 verbose = logical(opts.Verbose);
 opts.Verbose = max(opts.Verbose-1,0);
@@ -76,21 +81,25 @@ opts.Verbose = max(opts.Verbose-1,0);
 opts = mergestruct(defaultOpts, opts);
 
 % Constants
-nX = m.nX;
-nP = m.nP;
+nx = m.nx;
+nk = m.nk;
 nCon = numel(con);
 nObj = size(obj, 2);
-% Ensure UseRates is column vector of logical indexes
-[opts.UseParams, nVP] = fixUseParams(opts.UseParams, nP);
+
+% Ensure UseParams is logical vector
+[opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
 UseParamsInd = find(opts.UseParams);
 
-% Ensure UseICs is a matrix of logical indexes
-[opts.UseICs, nVX] = fixUseICs(opts.UseICs, opts.UseModelICs, nX, nCon);
+% Ensure UseICs is a logical matrix
+[opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 UseICsInd = find(opts.UseParams);
 
-nV = nVP + nVX;
+% Ensure UseControls is a cell vector of logical vectors
+[opts.UseControls nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, cat(1,con.nq));
 
-assert(nCon == 1 || opts.UseModelICs || ~nVX, 'KroneckerBio:FiniteObjectiveGradient:VectorCon', 'A vector for con is not yet fully supported variable initial conditions. Please contribute!')
+nT = nTk + nTx + nTq;
+
+assert(nCon == 1 || opts.UseModelICs || ~nTx, 'KroneckerBio:FiniteObjectiveGradient:VectorCon', 'A vector for con is not yet fully supported variable initial conditions. Please contribute!')
 
 % Add missing fields to structure
 con = pastestruct(Uzero(m), con);
@@ -106,10 +115,10 @@ if isempty(opts.RelTol) || isnan(opts.RelTol)
 end
 
 % Fix AbsTol to be a cell array of vectors appropriate to the problem
-opts.AbsTol = fixAbsTol(opts.AbsTol, 1, opts.continuous, nX, nCon);
+opts.AbsTol = fixAbsTol(opts.AbsTol, 1, opts.continuous, nx, nCon);
 
 %% Loop through conditions
-H = zeros(nV,nV);
+H = zeros(nT,nT);
 
 if nargout <= 1
     % Initial value
@@ -117,8 +126,8 @@ if nargout <= 1
     [unused D] = computeObjSens(m, con, obj, opts);
     
     % Finite stepping
-    for i = 1:nV
-        if verbose; fprintf('Step %d of %d\n', i, nP); end
+    for i = 1:nT
+        if verbose; fprintf('Step %d of %d\n', i, nk); end
         
         % Set baseline parameters
         kup = m.p;
@@ -133,16 +142,16 @@ if nargout <= 1
         end
         
         % Change current parameter by finite amount
-        if i <= nVP
+        if i <= nTk
             pi = kup(UseParamsInd(i));
             diff = kup(UseParamsInd(i)) * 1e-8;
             kup(UseParamsInd(i)) = pi + diff;
             kdown(UseParamsInd(i)) = pi - diff;
         else
-            pi = xup(UseICsInd(i-nVP));
-            diff = xup(UseICsInd(i-nVP)) * 1e-8;
-            xup(UseICsInd(i-nVP)) = pi + diff;
-            xdown(UseICsInd(i-nVP)) = pi - diff;
+            pi = xup(UseICsInd(i-nTk));
+            diff = xup(UseICsInd(i-nTk)) * 1e-8;
+            xup(UseICsInd(i-nTk)) = pi + diff;
+            xdown(UseICsInd(i-nTk)) = pi - diff;
         end
         
         % Run models to get goal function
@@ -185,10 +194,10 @@ else
             [unused D] = computeObjSens(m, con(iCon), obj(iCon,iObj), opts);
             
             % Finite stepping
-            curH = zeros(nV,nV);
+            curH = zeros(nT,nT);
             
-            for i = 1:nV
-                if verbose; fprintf('Step %d of %d\n', i, nP); end
+            for i = 1:nT
+                if verbose; fprintf('Step %d of %d\n', i, nk); end
                 
                 % Set baseline parameters
                 kup = m.p;
@@ -203,16 +212,16 @@ else
                 end
                 
                 % Change current parameter by finite amount
-                if i <= nVP
+                if i <= nTk
                     pi = kup(UseParamsInd(i));
                     diff = kup(UseParamsInd(i)) * 1e-8;
                     kup(UseParamsInd(i)) = pi + diff;
                     kdown(UseParamsInd(i)) = pi - diff;
                 else
-                    pi = xup(UseICsInd(i-nVP));
-                    diff = xup(UseICsInd(i-nVP)) * 1e-8;
-                    xup(UseICsInd(i-nVP)) = pi + diff;
-                    xdown(UseICsInd(i-nVP)) = pi - diff;
+                    pi = xup(UseICsInd(i-nTk));
+                    diff = xup(UseICsInd(i-nTk)) * 1e-8;
+                    xup(UseICsInd(i-nTk)) = pi + diff;
+                    xdown(UseICsInd(i-nTk)) = pi - diff;
                 end
                 
                 % Run models to get goal function

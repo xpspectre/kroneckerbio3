@@ -74,7 +74,7 @@ function [bestCons data] = BestParameterExperiment(m, con, obj, posCon, posObj, 
 
 %% Work-up
 % Clean up inputs
-assert(nargin >= 6, 'KroneckerBio:BestParameterExperiment:AtLeastSixInputs', 'FindBestExperiment requies at least 6 input arguments.')
+assert(nargin >= 6, 'KroneckerBio:BestParameterExperiment:TooFewInputs', 'BestParameterExperiment requires at least 6 input arguments')
 if nargin < 9
     EFs = [];
     if nargin < 8
@@ -85,19 +85,33 @@ if nargin < 9
     end
 end
 
-% Options
-defaultOpts.UseParams           = 1:m.nk;
-defaultOpts.UseICs              = [];
-defaultOpts.UseModelICs         = true;
-defaultOpts.ReturnCount         = 1;        % Number of experiments to return
-defaultOpts.MaxGreedySize       = 1;        % Number of experiments to consider at once for the greedy search. Inf = not greedy
-defaultOpts.MaxGreedyBudget     = inf;      % Amount of budget to consider in a single step. Inf = not greedy
-defaultOpts.TerminalGoal        = -inf;
-defaultOpts.AllowRepeats        = true;
-defaultOpts.UseExperiments      = true(size(obj));
-defaultOpts.Cost                = zeros(size(obj));
-defaultOpts.Budget              = inf;
-defaultOpts.Verbose             = false;
+assert(isscalar(m), 'KroneckerBio:BestParameterExperiment:MoreThanOneModel', 'The model structure must be scalar')
+
+% Default options
+defaultOpts.Verbose         = 1;
+
+defaultOpts.RelTol          = NaN;
+defaultOpts.AbsTol          = NaN;
+defaultOpts.UseModelICs     = false;
+defaultOpts.UseModelInputs  = false;
+
+defaultOpts.UseParams       = 1:m.nk;
+defaultOpts.UseICs          = [];
+defaultOpts.UseControls     = [];
+
+defaultOpts.ObjWeights      = ones(size(obj));
+
+defaultOpts.Normalized      = true;
+defaultOpts.UseAdjoint      = true;
+
+defaultOpts.UseExperiments  = true(size(obj));
+defaultOpts.Cost            = zeros(size(obj));
+defaultOpts.ReturnCount     = 1;        % Number of experiments to return
+defaultOpts.MaxGreedySize   = 1;        % Number of experiments to consider at once for the greedy search. Inf = not greedy
+defaultOpts.Budget          = inf;
+defaultOpts.MaxGreedyBudget = inf;      % Amount of budget to consider in a single step. Inf = not greedy
+defaultOpts.TerminalGoal    = -inf;
+defaultOpts.AllowRepeats    = true;
 
 opts = mergestruct(defaultOpts, opts);
 

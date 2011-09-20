@@ -119,7 +119,7 @@ catch
 end
 
 %% Standardize q as a numeric column vector
-assert(isnumeric(q), 'KroneckerBio:Experiment:ControlType', 'Control parameters (q) must be a vector of')
+assert(isnumeric(q), 'KroneckerBio:Experiment:ControlType', 'Control parameters q must be a vector of numerics')
 q = vec(q);
 
 %% Standardize dudq is possible
@@ -135,7 +135,7 @@ end
 if isnumeric(u)
     value = vec(u);
     assert(numel(u) == m.nu, 'KroneckerBio:ExperimentBasic:InputWrongLength', 'Numeric inputs u must have a length of m.nu')
-    u = @(t,q)repmat(value, 1,numel(t));
+    u = @(t,q)piecewisestep(t, [-1; 0], [zeros(1,numel(value)); value.']).';
     dudq = @(t,q)zeros(m.nu, numel(q));
 end
 

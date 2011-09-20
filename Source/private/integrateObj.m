@@ -31,7 +31,7 @@ else
 end
 
 % Integrate
-sol = accumulateOde(der, jac, 0, con.tF, ic, u, con.Discontinuities, 1:nx, opts.RelTol, opts.AbsTol(1:nx));
+sol = accumulateOde(der, jac, 0, con.tF, ic, u, con.Discontinuities, 1:nx, opts.RelTol, opts.AbsTol(1:nx+1));
 sol.u = u;
 sol.C1 = m.C1;
 sol.C2 = m.C2;
@@ -80,7 +80,7 @@ sol.c  = m.c;
             % Sum continuous objective gradients
             dgdx = zeros(1,nx);
             for i = 1:nObj
-                dgdx = dgdx + opts.ObjWeights(i) * obj(i).dgdx(t, x, u);
+                dgdx = dgdx + opts.ObjWeights(i) * vec(obj(i).dgdx(t, x, u)).';
             end
             
             val = [dfdx(t, x, u), sparse(nx,1);

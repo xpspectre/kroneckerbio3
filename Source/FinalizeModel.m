@@ -1,5 +1,5 @@
 function m = FinalizeModel(m)
-%FinalizeModel updates the mathematical components of the model to reflect
+%FinalizeModel Update the mathematical components of the model to reflect
 %   changes made to the model
 %
 %   m = FinalizeModel(m)
@@ -9,10 +9,10 @@ function m = FinalizeModel(m)
 %   compartments). Because of this, it is not possible to design Kronecker
 %   in such a way that the model is ready to use after the addition of any
 %   component. Furthermore, rebuilding the mathematical components of
-%   Kronecker takes a non-trivial amount of time. Since most components are
-%   added in groups, simply storing the components until they are all added
-%   saves time. Unfortunately, this requires the user to remember to call
-%   this function on the model when he is done.
+%   Kronecker takes a non-trivial amount of time. Since most users add
+%   components in groups, simply storing the components until they are all
+%   added saves time. Unfortunately, this requires the user to remember to
+%   call this function on the model when he is done.
 %
 %   Forgetting to call this function and using a model which has Ready set
 %   to false will result in undefined behavior.
@@ -25,6 +25,10 @@ function m = FinalizeModel(m)
 
 % (c) 2011 David R Hagen & Bruce Tidor
 % This work is released under the MIT license.
+
+%% Work-up
+assert(nargin >= 1, 'KroneckerBio:FinalizeModel:TooFewInputs', 'FinalizeModel requires at least 1 input arguments')
+assert(isscalar(m), 'KroneckerBio:FinalizeModel:MoreThanOneModel', 'The model structure must be scalar')
 
 %% Place compartments
 nvNew = m.add.nv;
@@ -1101,15 +1105,6 @@ m.D5 = reshape(m.dD5dk * sparsek, nr,nu*nu);
 m.D6 = reshape(m.dD6dk * sparsek, nr,nu);
 
 % Handles
-m.drdx = @drdx;
-m.drdu = @drdu;
-m.drdk = @drdk;
-
-m.d2rdx2  = @d2rdx2;
-m.d2rdk2  = @d2rdk2;
-m.d2rdxdk = @d2rdxdk;
-m.d2rdkdx = @d2rdkdx;
-
 m.f = fHidden(m.A1, m.A2, m.A3, m.A4, m.A5, m.A6, m.a, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, m.vxInd, m.vuInd);
 
 m.dfdx = dfdxHidden(m.A1, m.A2, m.A3, m.A4, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, m.vxInd, m.vuInd);
@@ -1117,7 +1112,10 @@ m.dfdu = dfduHidden(m.A3, m.A4, m.A5, m.A6, m.B1, m.B2, m.b, D3UsedColumns, D3Us
 m.dfdk = dfdkHidden(m.dA1dk_fk_x, m.dA2dk_fk_xx, m.dA3dk_fk_ux, m.dA4dk_fk_xu, m.dA5dk_fk_uu, m.dA6dk_fk_u, m.dadk, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, m.vxInd, m.vuInd);
 
 m.d2fdx2  = d2fdx2Hidden(m.A2, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies2, m.vxInd);
+m.d2fdu2  = d2fdu2Hidden(m.A5, m.B1, m.B2, m.b, D5UsedColumns, D5UsedSpecies2, m.vuInd);
 m.d2fdk2  = d2fdk2Hidden(m.nx, m.nk);
+m.d2fdudx = d2fdudxHidden(m.A3, m.A4, m.B1, m.B2, m.b, D3UsedColumns, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies2, m.vxInd, m.vuInd);
+m.d2fdxdu = d2fdxduHidden(m.A3, m.A4, m.B1, m.B2, m.b, D3UsedColumns, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies2, m.vxInd, m.vuInd);
 m.d2fdxdk = d2fdxdkHidden(m.dA1dk_fk_x, m.dA2dk_fk_xx, m.dA3dk_fk_ux, m.dA4dk_fk_xu, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, m.vxInd, m.vuInd);
 m.d2fdkdx = d2fdkdxHidden(m.dA1dk_fk_x, m.dA2dk_fk_xx, m.dA3dk_fk_ux, m.dA4dk_fk_xu, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, m.vxInd, m.vuInd);
 
@@ -1145,11 +1143,15 @@ m.Update = @Update;
         mout.q = q;
         
         % Distribute values
-        k = num2cell(k);
-        [mout.Parameters.Value] = k{:};
+        if m.nk >= 1
+            k = num2cell(k);
+            [mout.Parameters.Value] = k{:};
+        end
         
-        x0 = num2cell(x0);
-        [mout.Species(~isu).InitialValue] = x0{:};
+        if m.nx >= 1
+            x0 = num2cell(x0);
+            [mout.Species(~isu).InitialValue] = x0{:};
+        end
         
         qIndex = 0;
         uInd = find(isu);
@@ -1196,7 +1198,7 @@ nu = numel(vuInd);
 % Return handle
 handle = @dfdx;
 
-    function val = dfdx(t,x,u)
+    function val = dfdx(t, x, u)
 %   dfdx = A1 + A2*(Ix kron x/vx) + A2*(x kron diag(1/vx)) + A3*(u kron diag(1/vx))
         % Compartment column
         v = B1 * x + B2 * u + b;
@@ -1269,7 +1271,7 @@ end
 
 function handle = d2fdx2Hidden(A2, B1, B2, b, D2UsedColumns, D2UsedSpecies2, vxInd)
 % Constants
-nx = size(A2,1);
+nx = numel(vxInd);
 
 % Reverse the internal subscripts in the UsedColumns linear index
 [x1ind,x2ind] = ind2sub([nx,nx], D2UsedColumns);
@@ -1292,6 +1294,32 @@ handle = @d2fdx2;
     end
 end
 
+function handle = d2fdu2Hidden(A5, B1, B2, b, D5UsedColumns, D5UsedSpecies2, vuInd)
+% Constants
+nx = size(A5,1);
+nu = numel(vuInd);
+
+% Reverse the internal subscripts in the UsedColumns linear index
+[u1ind,u2ind] = ind2sub([nu,nu], D5UsedColumns);
+D5UsedColumnsReverse = sub2ind([nu, nu], u2ind, u1ind);
+
+% Return handle
+handle = @d2fdu2;
+
+    function val = d2fdu2(t, x, u)
+%   d2fdu2 = 2*A5*(Iu kron diag(1/vu))
+        % Compartment column
+        v = B1 * x + B2 * u + b;
+        vu = 1 ./ v(vuInd);
+        
+        % Second-order derivative of (u kron u/vu)
+        Iukron1vu = sparse([D5UsedColumns; D5UsedColumns], [D5UsedColumns; D5UsedColumnsReverse], [vu(D5UsedSpecies2); vu(D5UsedSpecies2)], nu*nu,nu*nu);
+        
+        val = A5 * Iukron1vu; % f_uu
+        val = reshape(val, nx*nu, nu); % fu_u
+    end
+end
+
 function handle = d2fdk2Hidden(nx, nk)
 % Return handle
 handle = @d2fdk2;
@@ -1299,6 +1327,92 @@ handle = @d2fdk2;
     function val = d2fdk2(t, x, u)
 %   d2fdk2 = 0
         val = sparse(nx*nk, nk); % fk_k
+    end
+end
+
+function handle = d2fdudxHidden(A3, A4, B1, B2, b, D3UsedColumns, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies2, vxInd, vuInd)
+% Constants
+nx = numel(vxInd);
+nu = numel(vuInd);
+Ix = speye(nx);
+Iu = speye(nu);
+
+% Return handle
+handle = @d2fdudx;
+
+    function val = d2fdudx(t, x, u)
+%   d2fdudx = A3 *{x.x;u.u} (Iu * (Ix *{xxx} vx ^ -1 - x *{xxx} dvxdx ^ -2)) + A4 *{x.x;u.u} (Ix * (Iu *{uxu} vu ^ -1 - u *{uxu} dvudu ^ -2))
+        % Compartment column
+        v = B1 * x + B2 * u + b;
+        vx = v(vxInd);
+        vu = v(vuInd);
+        vxinv = 1 ./ vx;
+        vuinv = 1 ./ vu;
+        dvxdx = B1(vxInd,:);
+        dvudu = B2(vuInd,:);
+        
+        % Sparse and non-sparse kronecker multiplication
+        Iukron1vx = sparse(D3UsedColumns, D3UsedColumns, vxinv(D3UsedSpecies2), nx*nu,nx*nu); % xu_xu
+        if any(vec(dvxdx))
+            Iukronxdvxdx = kron(Iu, bsxfun(@times, x .* vx .^ -2, dvxdx));
+        else
+            % Matlab's kron is expensive, don't do it if it is just zeros
+            Iukronxdvxdx = sparse(nx*nu,nx*nu);
+        end
+        
+        Ixkron1vu = sparse(D4UsedColumns, D4UsedColumns, vuinv(D4UsedSpecies2), nu*nx,nu*nx); % ux_ux
+        if any(vec(dvxdx))
+            Ixkronudvudu = kron(Ix, bsxfun(@times, u .* vu .^ -2, dvudu));
+        else
+            % Matlab's kron is expensive, don't do it if it is just zeros
+            Ixkronudvudu = sparse(nu*nx,nu*nx);
+        end
+        
+        val = A3 * (Iukron1vx - Iukronxdvxdx) + spermute132(A4 * (Ixkron1vu - Ixkronudvudu), [nx,nu,nx],[nx,nx*nu]); % f_xu
+        val = reshape(val, nx*nx,nu); % fx_u
+    end
+end
+
+function handle = d2fdxduHidden(A3, A4, B1, B2, b, D3UsedColumns, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies2, vxInd, vuInd)
+% Constants
+nx = numel(vxInd);
+nu = numel(vuInd);
+Ix = speye(nx);
+Iu = speye(nu);
+
+% Return handle
+handle = @d2fdxdu;
+
+    function val = d2fdxdu(t, x, u)
+%   d2fdxdu = A3 *{x.x;u.u} (Iu * (Ix *{xxx} vx ^ -1 - x *{xxx} dvxdx ^ -2)) + A4 *{x.x;u.u} (Ix * (Iu *{uxu} vu ^ -1 - u *{uxu} dvudu ^ -2))
+        % Compartment column
+        v = B1 * x + B2 * u + b;
+        vx = v(vxInd);
+        vu = v(vuInd);
+        vxinv = 1 ./ vx;
+        vuinv = 1 ./ vu;
+        dvxdx = B1(vxInd,:);
+        dvudu = B2(vuInd,:);
+        
+        % Sparse and non-sparse kronecker multiplication
+        Iukron1vx = sparse(D3UsedColumns, D3UsedColumns, vxinv(D3UsedSpecies2), nx*nu,nx*nu); % xu_xu
+        if any(vec(dvxdx))
+            Iukronxdvxdx = kron(Iu, bsxfun(@times, x .* vx .^ -2, dvxdx));
+        else
+            % Matlab's kron is expensive, don't do it if it is just zeros
+            Iukronxdvxdx = sparse(nx*nu,nx*nu);
+        end
+        
+        Ixkron1vu = sparse(D4UsedColumns, D4UsedColumns, vuinv(D4UsedSpecies2), nu*nx,nu*nx); % ux_ux
+        if any(vec(dvxdx))
+            Ixkronudvudu = kron(Ix, bsxfun(@times, u .* vu .^ -2, dvudu));
+        else
+            % Matlab's kron is expensive, don't do it if it is just zeros
+            Ixkronudvudu = sparse(nu*nx,nu*nx);
+        end
+        
+        val = spermute132(A3 * (Iukron1vx - Iukronxdvxdx), [nx,nx,nu],[nx,nu*nx]) + A4 * (Ixkron1vu - Ixkronudvudu); % f_ux
+        val = reshape(val, nx*nu,nx); % fu_x
     end
 end
 
@@ -1356,6 +1470,32 @@ handle = @d2fdkdx;
     end
 end
 
+% function handle = d2fdkduHidden()
+% % Constants
+% 
+% % Return handle
+% handle = @d2fdkdu;
+% 
+%     function val = d2fdkdu(t, x, u)
+% %   d2fdkdu = 
+%         % Compartment column
+%         v = B1 * x + B2 * u + b;
+%     end
+% end
+% 
+% function handle = d2fdudkHidden()
+% % Constants
+% 
+% % Return handle
+% handle = @d2fdudk;
+% 
+%     function val = d2fdudk(t, x, u)
+% %   d2fdudk = 
+%         % Compartment column
+%         v = B1 * x + B2 * u + b;
+%     end
+% end
+
 function handle = rHidden(D1, D2, D3, D4, D5, D6, d, B1, B2, b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, vxInd, vuInd)
 % Constants
 nx = numel(vxInd);
@@ -1389,7 +1529,7 @@ nu = numel(vuInd);
 % Return handle
 handle = @drdx;
 
-    function val = drdx(t,x,u)
+    function val = drdx(t, x, u)
 %   drdx = D1 + D2*(Ix kron x/vx) + D2*(x kron diag(1/vx)) + D3*(u kron diag(1/vx))
         % Compartment column
         v = B1 * x + B2 * u + b;
@@ -1407,7 +1547,7 @@ handle = @drdx;
     end
 end
 
-function handle = drduHidden(A3, A4, A5, A6, B1, B2, b, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, vxInd, vuInd)
+function handle = drduHidden(D3, D4, D5, D6, B1, B2, b, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, vxInd, vuInd)
 % Constants
 nx = numel(vxInd);
 nu = numel(vuInd);

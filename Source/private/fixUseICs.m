@@ -34,37 +34,43 @@ function [UseICs, nTx] = fixUseICs(UseICs, UseModelICs, nx, nCon)
 % (c) 2010 David R Hagen & Bruce Tidor
 % This work is released under the MIT license.
 
-assert(islogical(UseICs) || isempty(UseICs) || (all(isinteger(UseICs)) && all(UseICs >= 1)), 'KroneckerBio:UseICs:Integer', 'Some entries in UseICs are not natural numbers.')
+assert(islogical(UseICs) || isempty(UseICs) || (all(floor(UseICs) == UseICs) && all(UseICs >= 1)), 'KroneckerBio:UseICs:Integer', 'Some entries in UseICs are not natural numbers.')
 assert(islogical(UseICs) || isempty(UseICs) || (max(UseICs) <= nx), 'KroneckerBio:UseICs:InvalidIndex', 'An entry in UseICs was larger than the number of species in the model.')
 
 if UseModelICs
-    if islogical(UseICs)
+    if isnumeric(UseICs)
+        assert(all(floor(UseICs) == UseICs) && all(UseICs >= 1), 'KroneckerBio:UseICs:InvalidValue', 'UseICs is an invalid linear index')
+        assert(all(UseICs <= nx), 'KroneckerBio:UseControls:LinearIndexOutOfRange', 'If UseICs is provided as a linear index, then no linear index can be larger than m.nx')
+        temp = false(nx, 1);
+        temp(UseICs) = true;
+        UseICs = temp;
+    elseif islogical(UseICs)
+        assert(numel(UseICs) <= nx, 'KroneckerBio:UseICs:InvalidLogicalLength', 'If UseICs is provided as a logical index, numel(UseICs) cannot be larger than m.nx')
         UseICs = vec(UseICs);
     else
-        temp = UseICs;
-        UseICs = zeros(nx, 1);
-        UseICs(temp) = 1;
-        UseICs = logical(UseICs);
+        error('KroneckerBio:UseICs:InvalidType', 'UseICs must be provided as logical or linear index vector into m.x0')
     end
 else%if use ICs on conditions
-    if islogical(UseICs)
-        if numel(UseICs) == nx
+    if isnumeric(UseICs)
+        assert(all(floor(UseICs) == UseICs) && all(UseICs >= 1), 'KroneckerBio:UseICs:InvalidValue', 'UseICs is an invalid linear index')
+        assert(all(UseICs <= nx), 'KroneckerBio:UseControls:LinearIndexOutOfRange', 'If UseICs is provided as a linear index, then no linear index can be larger than m.nx. Use a logical matrix to refer to different ICs on each condition.')
+        temp = false(nx,nCon);
+        temp(UseICs,:) = true;
+        UseICs = temp;
+    elseif islogical(UseICs)
+        if numel(UseICs) <= nx
             % Parameter ICs are same for all conditions
-            temp = UseICs;
-            UseICs = zeros(nx, nCon);
-            for iCon = 1:nCon
-                UseICs(:,iCon) = temp;
-            end
-            UseICs = logical(UseICs);
-        else%if numel(UseICs) == nx*nCon
-            % Parameter ICs are provided for all conditions. Format is
-            % already correct.
+            temp = false(nx,nCon);
+            temp(UseICs,:) = true;
+            UseICs = temp;
+        elseif numel(UseICs) == nx*nCon
+            % Parameter ICs are provided for all conditions. Format is already correct.
+            UseICs = reshape(UseICs, nx,nCon);
+        else
+            error('KroneckerBio:UseICs:InvalidLogicalSize', 'If UseICs is provided as a logical matrix, numel(UseICs) must be less than m.nx or equal to m.nx*numel(con)')
         end
-    else%if isnumeric
-        temp = UseICs;
-        UseICs = false(nx,1);
-        UseICs(temp) = true;
-        UseICs = repmat(UseICs, 1,nCon);
+    else
+        error('KroneckerBio:UseICs:InvalidType', 'UseICs must be provided as logical or linear index into [con.x0]')
     end
 end
 nTx = sum(sum(UseICs));

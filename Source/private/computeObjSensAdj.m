@@ -6,13 +6,16 @@ if verboseAll; tic; end
 nx = m.nx;
 nTk = sum(opts.UseParams);
 nTx = sum(sum(opts.UseICs));
-nT  = nTk + nTx;
-nCon = length(con);
+nTq = sum(cat(1,opts.UseControls{:}));
+nT  = nTk + nTx + nTq;
+nCon = numel(con);
 nObj = size(obj,1);
 
 % Initialize variables
 G = 0;
 D = zeros(nT,1);
+Txind = nTk; % Stores the position in D where the first x0 parameter goes for each iCon
+Tqind = nTk+nTx; % Stores the position in D where the first q parameter goes for each iCon
 intOpts = opts;
 
 if opts.Verbose; disp('Integrating adjoint...'); end
@@ -23,6 +26,24 @@ for iCon = 1:nCon
     intOpts.AbsTol = opts.AbsTol{iCon};
     intOpts.ObjWeights = opts.ObjWeights(:,iCon);
 
+    % If opts.UseModelICs is false, the number of variables can change
+    if opts.UseModelICs
+        inTx = nTx;
+    else
+        intOpts.UseICs = opts.UseICs(:,iCon);
+        inTx = sum(intOpts.UseICs);
+    end
+    
+    % If opts.UseModelInputs is false, the number of variables can change
+    if opts.UseModelInputs
+        inTq = nTq;
+    else
+        intOpts.UseControls = opts.UseControls(iCon);
+        inTq = sum(intOpts.UseControls{1});
+    end
+    
+    inT = nTk + inTx + inTq;
+    
     % * Integrate to steady-state
     if con(iCon).SteadyState
         ss = true;
@@ -73,10 +94,11 @@ for iCon = 1:nCon
     G = G + contG + discG;
     
     % * Integrate Adjoint *
+    % Construct system
     [der, jac, del] = constructSystem();
     
     % Set initial conditions
-    ic = zeros(nx+nTk,1);
+    ic = zeros(nx+nTk+inTq,1);
     
     % Input
     if opts.UseModelInputs
@@ -86,7 +108,7 @@ for iCon = 1:nCon
     end
     
     % Integrate [lambda; D] backward in time
-    sol = accumulateOde(der, jac, 0, con(iCon).tF, ic, u, [con(iCon).Discontinuities; discreteTimes], [], opts.RelTol, opts.AbsTol{iCon}(nx+opts.continuous(iCon)+1:nx+opts.continuous(iCon)+nx+nT), del, -1, [], [], [], 0);
+    sol = accumulateOde(der, jac, 0, con(iCon).tF, ic, u, [con(iCon).Discontinuities; discreteTimes], [], opts.RelTol, opts.AbsTol{iCon}(nx+opts.continuous(iCon)+1:nx+opts.continuous(iCon)+nx+nTk+inTq), del, -1, [], [], [], 0);
     
     % * Complete steady-state *
     if ss
@@ -97,7 +119,7 @@ for iCon = 1:nCon
         ic = sol.y;
         
         % Integrate [lambda; D] backward in time and replace previous run
-        sol = accumulateOde(der, jac, 0, ssSol.x(end), ic, u, [], [], opts.RelTol, opts.AbsTol{iCon}(nx+opts.continuous(iCon)+1:nx+opts.continuous(iCon)+nx+nT), [], -1, [], [], [], 0);
+        sol = accumulateOde(der, jac, 0, ssSol.x(end), ic, u, [], [], opts.RelTol, opts.AbsTol{iCon}(nx+opts.continuous(iCon)+1:nx+opts.continuous(iCon)+nx+nTk+inTq), [], -1, [], [], [], 0);
     end
     
     % *Add contributions to derivative*
@@ -105,21 +127,30 @@ for iCon = 1:nCon
     
     % Rate parameters
     curD = zeros(nT,1);
-    curD(1:nTk) = -sol.y(nx+1:end,end);
+    curD([1:nTk, Tqind+1:Tqind+inTq]) = -sol.y(nx+1:end,end);
     
     % Initial conditions
     if opts.UseModelICs
         lambda = sol.y(1:nx,end);
         dx0dx0 = speye(nx,nx);
-        curD(nTk+1:nT) = dx0dx0(opts.UseICs,:) * lambda;
+        curD(Txind+1:Txind+inTx) = dx0dx0(opts.UseICs,:) * -lambda;
     else
         lambda = sol.y(1:nx,end);
         dx0dx0 = speye(nx,nx);
-        curD(nTk+1:nT) = dx0dx0(opts.UseICs(:,iCon),:) * lambda;
+        curD(Txind+1:Txind+inTx) = dx0dx0(opts.UseICs(:,iCon),:) * -lambda;
     end
     
     % Add to cumulative goal value
     D = D + curD;
+    
+    % Update condition x0 position
+    if ~opts.UseModelICs
+        Txind = Txind + inTx;
+    end
+    % Update condition q position
+    if ~opts.UseModelInputs
+        Tqind = Tqind + inTq;
+    end
     
     if verboseAll; fprintf('iCon = %d\t|dGdp| = %g\tTime = %0.2f\n', iCon, norm(curD), toc); end    
 end
@@ -134,7 +165,13 @@ if opts.Verbose; fprintf('Summary: |dGdp| = %g\n', norm(D)); end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     function [der, jac, del] = constructSystem()
         dfdx = m.dfdx;
+        dfdu = m.dfdu;
         dfdT = @dfdTSub;
+        if opts.UseModelInputs
+            dudq = m.dudq;
+        else
+            dudq = con.dudq;
+        end
         
         der = @derivative;
         jac = @jacobian;
@@ -148,11 +185,11 @@ if opts.Verbose; fprintf('Summary: |dGdp| = %g\n', norm(D)); end
             
             % Sum continuous objective functions
             dgdx = zeros(nx,1);
-            dgdT = zeros(nT,1);
+            dgdT = zeros(nTk+inTq,1);
             for iObj = 1:nObj
-                dgdx = dgdx + opts.ObjWeights(iObj,iCon)*vec(obj(iObj,iCon).dgdx(t, x, u));
-                dgdk = obj(iObj,iCon).dgdk(t, x, u);
-                dgdT = dgdT + opts.ObjWeights(iObj,iCon)*dgdk(opts.UseParams);
+                dgdx = dgdx + opts.ObjWeights(iObj,iCon)*vec(obj(iObj,iCon).dgdx(t,x,u));
+                dgdk = obj(iObj,iCon).dgdk(t,x,u); % k_
+                dgdT = dgdT + opts.ObjWeights(iObj,iCon)*[vec(dgdk(opts.UseParams)); zeros(inTq,1)]; % T_ + (k_ -> T_) -> T_
             end
             
             val = [dgdx; dgdT] - [dfdx(t,x,u).'; dfdT(t,x,u).'] * l;
@@ -163,18 +200,18 @@ if opts.Verbose; fprintf('Summary: |dGdp| = %g\n', norm(D)); end
             u = u(t);
             x = deval(xSol, t, 1:nx);
             
-            val = [-dfdx(t, x, u).', sparse(nx, nT);
-                   -dfdT(t, x, u).', sparse(nT, nT)];
+            val = [-dfdx(t,x,u).', sparse(nx,nTk+inTq);
+                   -dfdT(t,x,u).', sparse(nTk+inTq,nTk+inTq)];
         end
         
         % Discrete effects of the objective function
         function val = delta(t)
             dGdx = zeros(nx,1);
-            dGdT = zeros(nT,1);
+            dGdT = zeros(nTk+inTq,1);
             for iObj = 1:nObj
                 dGdx = dGdx + opts.ObjWeights(iObj,iCon)*vec(obj(iObj,iCon).dGdx(t, xSol));
-                dGdk = obj(iObj,iCon).dGdk(t, xSol);
-                dGdT = dGdT + opts.ObjWeights(iObj,iCon)*dGdk(opts.UseParams);
+                dGdk = obj(iObj,iCon).dGdk(t, xSol); % k_
+                dGdT = dGdT + opts.ObjWeights(iObj,iCon)*[vec(dGdk(opts.UseParams)); zeros(inTq,1)]; % T_ + (k_ -> T_) -> T_
             end
             
             val = [dGdx; dGdT];
@@ -182,8 +219,9 @@ if opts.Verbose; fprintf('Summary: |dGdp| = %g\n', norm(D)); end
         
         % Modifies dfdk to relate only to the parameters of interest
         function val = dfdTSub(t, x, u)
-            val = m.dfdk(t, x, u);
-            val = val(:,opts.UseParams);
+            val = m.dfdk(t,x,u);
+            dfdq = dfdu(t,x,u) * dudq(t);
+            val = [val(:,opts.UseParams) dfdq(:,opts.UseControls{1})];
         end
     end
 
@@ -208,14 +246,15 @@ if opts.Verbose; fprintf('Summary: |dGdp| = %g\n', norm(D)); end
             u = u(-1);
             x = deval(ssSol, t, 1:nx);
             
-            val = [-dfdx(-1, x, u).', sparse(nx, nT);
-                   -dfdT(-1, x, u).', sparse(nT, nT)];
+            val = [-dfdx(-1,x,u).', sparse(nx,nTk+inTq);
+                   -dfdT(-1,x,u).', sparse(nT,nTk+inTq)];
         end
         
         % Modifies dfdk to relate only to the parameters of interest
         function val = dfdTSub(t, x, u)
-            val = m.dfdk(-1, x, u);
-            val = val(:,opts.UseParams);
+            val = m.dfdk(-1,x,u);
+            dfdq = dfdu(-1,x,u) * dudq(-1);
+            val = [val(:,opts.UseParams) dfdq(:,opts.UseControls{1})];
         end
     end
 end

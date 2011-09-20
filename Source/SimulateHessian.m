@@ -1,7 +1,6 @@
 function [varargout] = SimulateHessian(m, con, opts, xSol, dxdpSol)
-%SIMULATEHESSIAN Integrate the sensitivities of the sensitivities over all
-%   time. This function computes the double derivative on the species
-%   concentration with respect to the parameters over all time.
+%SimulateHessian Integrate the sensitivities of the sensitivities over all
+%   time
 %
 %   Mathematically: d2x/dp2 = Integral(df/dx * d2x/dp2 + (2*d2f/dpdx +
 %                               d2p/dx2 * dx/dp) * dx/dp + d2f/dp2)
@@ -81,7 +80,6 @@ function [varargout] = SimulateHessian(m, con, opts, xSol, dxdpSol)
 
 %% Work-up
 % Clean up inputs
-assert(nargout <= 4, 'KroneckerBio:SimulateHessian:FiveOrFewerOutputs', 'SimulationHessian must have between 0 and 4 outputs.')
 if nargin < 5
     dxdpSol = [];
     if nargin < 4
@@ -117,12 +115,17 @@ if isnumeric(m)
     return
 end
 
-% Options
-defaultOpts.AbsTol      = [];
-defaultOpts.RelTol      = [];
-defaultOpts.useParams   = 1:m.nP;
-defaultOpts.useICs      = [];
-defaultOpts.verbose     = false;
+assert(nargin >= 2, 'KroneckerBio:SimulateHessian:TooFewInputs', 'SimulateHessian requires at least 2 input arguments')
+assert(nargout <= 4, 'KroneckerBio:SimulateHessian:FiveOrFewerOutputs', 'SimulationHessian must have between 0 and 4 outputs')
+assert(isscalar(m), 'KroneckerBio:SimulateHessian:MoreThanOneModel', 'The model structure must be scalar')
+
+% Default options
+defaultOpts.Verbose        = 1;
+
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
+defaultOpts.UseModelICs    = false;
+defaultOpts.UseModelInputs = false;
 
 opts = mergestruct(defaultOpts, opts);
 

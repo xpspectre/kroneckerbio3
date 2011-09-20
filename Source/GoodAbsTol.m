@@ -83,25 +83,30 @@ opts = mergestruct(defaultOpts, opts);
 nT = nTx + nTk;
 
 %% xGoodRatio
-% Get the floor on the uncertainty of the outputs
-yFloor = zeros(ny,1);
+% Get the typical uncertainties for the outputs
+yFloor = zeros(ny,1);    % The lowest uncertainty for this output
+yStandard = zeros(ny,1); % A typical uncertainty for this output
 for iy = 1:ny
     yFloor(iy) = sd(0, iy, 0);
+    yStandard(iy) = sd(0, iy, yFloor(iy)*10) ./ yFloor(iy)*10;
 end
+
+% A good abstol ratio is the ratio of the floor to the standard uncertainty
+yRatio = yFloor ./ yStandard;
 
 % Transfer the floor back to the species
 % Out of all the outputs that a species affects, we should take the most
 % conservative floor.
-xFloor = bsxfun(@rdivide, yFloor, m.C1); % Propogation of floors
-xFloor = min(xFloor, [], 1); % Keep most conservative
-xFloor = vec(xFloor); % Straighten it
+xRatio = bsxfun(@rdivide, yRatio, m.C1); % Propogation of floors
+xRatio = min(xRatio, [], 1); % Keep most conservative
+xRatio = vec(xRatio); % Straighten it
 
 % Assume that the effect between species is one-to-one and can travel an
 % infinite distance along the network.
 % net = NetworkDistance(m); % Distance between species
 % net = spones(net); % Convert to one-to-one mapping
 % xGoodRatio = bsxfun(@rdivide, xFloor, net); % Propogation
-xGoodRatio = repmat(min(xFloor, [], 1), nx,1); % Keep most conservative and assign it to all
+xGoodRatio = repmat(min(xRatio, [], 1), nx,1); % Keep most conservative and assign it to all
 xGoodRatio = vec(xGoodRatio); % Straighten it
 
 %% Assemble the vectors for each experiment
@@ -138,22 +143,26 @@ else%UseAdjoint
         
         % D ratio
         % These elements are not computed in log space so their absolute
-        % value will be inversely proportational to theta. Let the floor we
-        % care about be TolOptim.
-        DGoodRatio = opts.TolOptim ./ T;
+        % value will be inversely proportational to theta.
+        DGoodRatio = 1 ./ T;
         
         % lambda ratio
         % The effect that lambda has on D is through df/dT. Take the most
-        % conservative effect. If the model is linear, then the maximum
+        % conservative effect. If the odes are linear, then the maximum
         % value of df/dT is x/T. A good ratio would therefore be x/T
-        dxdTGoodRatio = bsxfun(@rdivide, xGoodRatio, T.'); % x_T
-        effect = bsxfun(@rdivide, DGoodRatio, dxdTGoodRatio.'); % T / T_x
-        lAbsTol = max(effect, [], 1);
+%         dxdTGoodRatio = bsxfun(@rdivide, xGoodRatio, T.'); % x_T
+%         effect = bsxfun(@rdivide, DGoodRatio, dxdTGoodRatio.'); % T / T_x
+%         lAbsTol = vec(max(effect, [], 1));
+        
+        % lambda ratio
+        % Because df/dT *{fxx} x ^{xx} -1 is on the order of lambda and on
+        % the order of 1, then lambda is on the order of 1
+        lAbsTol = ones(nx,1);
         
         % Zero entries are for those with no effect
         lAbsTol(lAbsTol == 0) = inf;
         
         % Combine into one AbsTol ratio
-        absTolRatio{iCon} = [xGoodRatio; vec(lAbsTol); DGoodRatio];
+        absTolRatio{iCon} = [xGoodRatio; lAbsTol; DGoodRatio];
     end
 end

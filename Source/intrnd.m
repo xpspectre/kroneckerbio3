@@ -14,6 +14,9 @@ function r = intrnd(a,b,varargin)
 %   r = intrnd(a, b, m,...)
 %   r = intrnd(a, b, [m,...])
 %   Draw an arbitrary dimensional array of independent random integers
+%
+%   This function is deprecated and will be removed in future versions. Use
+%   Matlab's randi function instead for versions 2008b and newer.
 
 % (c) 2010 David R Hagen & Bruce Tidor
 % This work is released under the MIT license.

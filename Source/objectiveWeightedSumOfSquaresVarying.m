@@ -49,7 +49,6 @@ temp = m;
 clear m
 m.nx = temp.nx;
 m.nk = temp.nk;
-m.c = temp.c;
 clear temp
 
 % Constants

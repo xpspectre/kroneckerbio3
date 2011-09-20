@@ -10,16 +10,18 @@ verboseAll = max(opts.Verbose-1,0);
 
 % Constants
 nx = m.nx;
-nTk = sum(sum(opts.UseParams));
+nTk = sum(opts.UseParams);
 nTx = sum(sum(opts.UseICs));
-nT  = nTk + nTx;
-nCon = length(con);
+nTq = sum(cat(1,opts.UseControls{:}));
+nT  = nTk + nTx + nTq;
+nCon = numel(con);
 nObj = size(obj,1);
 
 % Initialize variables
 G = 0;
 D = zeros(nT,1);
-Txind = 1; % Stores the position in D where the first x0 parameter goes for each iCon
+Txind = nTk; % Stores the position in D where the first x0 parameter goes for each iCon
+Tqind = nTk+nTx; % Stores the position in D where the first q parameter goes for each iCon
 intOpts = opts;
 
 if opts.Verbose; disp('Integrating sensitivities:'); end
@@ -29,12 +31,20 @@ for iCon = 1:nCon
     % If opts.UseModelICs is false, the number of variables can change
     if opts.UseModelICs
         inTx = nTx;
-        inT = nT;
     else
         intOpts.UseICs = opts.UseICs(:,iCon);
         inTx = sum(intOpts.UseICs);
-        inT = nTk + inTx;
     end
+    
+    % If opts.UseModelInputs is false, the number of variables can change
+    if opts.UseModelInputs
+        inTq = nTq;
+    else
+        intOpts.UseControls = opts.UseControls(iCon);
+        inTq = sum(intOpts.UseControls{1});
+    end
+    
+    inT = nTk + inTx + inTq;
 
     % Modify opts structure
     intOpts.AbsTol = opts.AbsTol{iCon};
@@ -62,7 +72,7 @@ for iCon = 1:nCon
     
     % Compute discrete term
     discG = 0;
-    discreteTimes = [];
+    discreteTimes = zeros(0,1);
     for iObj = 1:nObj
         [iDiscG, temp] = obj(iObj,iCon).G(sol);
         discreteTimes = [discreteTimes; vec(temp)];
@@ -83,43 +93,52 @@ for iCon = 1:nCon
         dGdTEnd   = nx+1+nx*inT+inT;
         contD = sol.y(dGdTStart:dGdTEnd,end);
     else
-        contD = sparse(nT,1);
+        contD = zeros(nT,1);
     end
     
     % Compute discrete term
     dxdTStart = nx+opts.continuous(iCon)+1;
     dxdTEnd   = nx+opts.continuous(iCon)+nx*inT;
-    dxdT = deval(sol, discreteTimes, dxdTStart:dxdTEnd); % xv_t
-    discD = zeros(inT,nObj*nDisc); % v_ot
+    if ~isempty(discreteTimes) % deval crashes on empty t
+        dxdT = deval(sol, discreteTimes, dxdTStart:dxdTEnd); % xT_t
+    end
+    discD = zeros(inT,nObj*nDisc); % T_ot
     for iObj = 1:nObj
-        objDiscD = zeros(inT,1); % v_
         for iDisc = 1:nDisc
-            objDiscD = objDiscD + vec(vec(obj(iObj,iCon).dGdx(discreteTimes(iDisc), sol)).' * reshape(dxdT(:,iDisc), nx, inT)); % v_ + (_x * x_v --> _v --> v_) --> v_
+            objDiscD = vec(vec(obj(iObj,iCon).dGdx(discreteTimes(iDisc), sol)).' * reshape(dxdT(:,iDisc), nx, inT)); % _x * x_T --> _T --> T_
             temp = vec(obj(iObj,iCon).dGdk(discreteTimes(iDisc), sol)); % p_ % partial dGdp(i)
-            temp = [temp(opts.UseParams); sparse(inTx,1)]; % p_ --> v_
-            objDiscD = objDiscD + temp; % v_
+            temp = [temp(opts.UseParams); zeros(inTx+inTq,1)]; % k_ --> T_
+            objDiscD = objDiscD + temp; % T_
+            discD(:,(iObj-1)*nDisc + iDisc) = opts.ObjWeights(iObj,iCon) * objDiscD; % T_ as a row in T_ot
         end
-        discD(:,(iObj-1)*nDisc + iDisc) = opts.ObjWeights(iObj,iCon) * objDiscD; % v_ as a row in v_ot
     end
     
     % Sorting by abs value to minimize numerical error
     [unused I] = sort(abs(discD),2);
-    for i = 1:inT
-        discD(i,:) = discD(i,I(i,:));
+    for iT = 1:inT
+        discD(iT,:) = discD(iT,I(iT,:));
     end
     discD = sum(discD,2);
     
     % Sum discrete and continuous terms
+    % Rate parameters are the same
+    D(1:nTk) = D(1:nTk) + contD(1:nTk) + discD(1:nTk);
+    
     if opts.UseModelICs
-        % All conditions have the same variables
-        D = D + contD + discD;
+        D(nTk+1:nTk+nTx) = D(nTk+1:nTk+nTx) + contD(nTk+1:nTk+inTx) + discD(nTk+1:nTk+inTx);
     else
-        % Rate parameters are the same
-        D(1:nTk) = D(1:nTk) + contD(1:nTk) + discD(1:nTk);
-        % IC parameters are different
-        D(Txind:Txind+inTx-1) = contD(nTk+1:nTk+inTx) + discD(nTk+1:nTk+inTx);
+        % x0 parameters are different
+        D(Txind+1:Txind+inTx) = contD(nTk+1:nTk+inTx) + discD(nTk+1:nTk+inTx);
         % Increment index of variable ICs
         Txind = Txind + inTx;
+    end
+    
+    if opts.UseModelInputs
+        D(nTk+nTx+1:end) = D(nTk+nTx+1:end) + contD(nTk+inTx+1:end) + discD(nTk+inTx+1:end);
+    else
+        % q parameters are different
+        D(Tqind+1:Tqind+inTq) = contD(nTk+inTx+1:end) + discD(nTk+inTx+1:end);
+        Tqind = Tqind + inTq;
     end
     
     % Return the adaptive abstol, if requested
@@ -130,4 +149,4 @@ for iCon = 1:nCon
     if verboseAll; fprintf('iCon = %d\t|dGdT| = %g\tTime = %0.2f\n', iCon, norm(contD + discD), toc); end
 end
 
-if opts.Verbose;fprintf('Summary: |dGdp| = %g\n', norm(D));end
+if opts.Verbose; fprintf('Summary: |dGdT| = %g\n', norm(D)); end

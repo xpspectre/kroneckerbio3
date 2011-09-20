@@ -1,5 +1,5 @@
 function m = InitializeModel(name)
-%InitializeModel creates an empty mass action Kronecker model structure
+%InitializeModel Create an empty mass action Kronecker model structure
 %   which can then have compartment, species, outputs, parameters, and
 %   reactions added to it.
 %
@@ -207,13 +207,22 @@ function m = InitializeModel(name)
 %           The partial derivative of f wrt k
 %       .d2fdx2 [ handle @(t,x,u) returns real matrix nx*nx by nx ] (fx_x)
 %           The partial derivative of dfdx wrt x
+%       .d2fdu2 [ handle @(t,x,u) returns real matrix nx*nu by nu ] (fu_u)
+%           The partial derivative of dfdu wrt u
 %       .d2fdk2 [ handle @(t,x,u) returns real matrix nx*nk by nk ] (fk_k)
 %           The partial derivative of dfdk wrt k
-%       .d2fdxdk [ handle @(t,x,u) returns real matrix nx*nk by nx ] (fk_x)
-%           The partial derivative of dfdk wrt x
+%       .d2fdudx [ handle @(t,x,u) returns real matrix nx*nx by nu ] (fx_u)
+%           The partial derivative of dfdx wrt u. 
+%       .d2fdxdu [ handle @(t,x,u) returns real matrix nx*nu by nx ] (fu_x)
+%           The partial derivative of dfdu wrt x. 
 %       .d2fdkdx [ handle @(t,x,u) returns real matrix nx*nx by nk ] (fx_k)
-%           The partial derivative of dfdx wrt k. This is a reshape of
-%           d2fdxdk.
+%           The partial derivative of dfdx wrt k. 
+%       .d2fdxdk [ handle @(t,x,u) returns real matrix nx*nk by nx ] (fk_x)
+%           The partial derivative of dfdk wrt x.
+%       .d2fdkdu [ handle @(t,x,u) returns real matrix nx*nu by nk ] (fu_k)
+%           The partial derivative of dfdu wrt k. 
+%       .d2fdudk [ handle @(t,x,u) returns real matrix nx*nk by nu ] (fk_u)
+%           The partial derivative of dfdk wrt u. 
 %       .S [ integer matrix nx by nr ]
 %           The stoichiometry matrix. Maps how each elementary reaction
 %           changes the number of each state species.
@@ -378,9 +387,14 @@ m.dfdu = @(t,x,u)(zeros(0,0));
 m.dfdk = @(t,x,u)(zeros(0,0));
 
 m.d2fdx2  = @(t,x,u)(zeros(0,0));
+m.d2fdu2  = @(t,x,u)(zeros(0,0));
 m.d2fdk2  = @(t,x,u)(zeros(0,0));
-m.d2fdxdk = @(t,x,u)(zeros(0,0));
+m.d2fdudx = @(t,x,u)(zeros(0,0));
+m.d2fdxdu = @(t,x,u)(zeros(0,0));
 m.d2fdkdx = @(t,x,u)(zeros(0,0));
+m.d2fdxdk = @(t,x,u)(zeros(0,0));
+m.d2fdkdu = @(t,x,u)(zeros(0,0));
+m.d2fdudk = @(t,x,u)(zeros(0,0));
 
 m.S = zeros(0,0);
 

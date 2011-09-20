@@ -1,6 +1,6 @@
 function D = FiniteObjectiveGradient(m, con, obj, opts)
-%FiniteObjectiveGradient evaluates the gradient of a set of objective
-%   functions
+%FiniteObjectiveGradient Evaluate the gradient of a set of objective
+%   functions using the finite difference approximation
 %
 %   D = FiniteObjectiveGradient(m, con, obj, opts)
 %
@@ -51,27 +51,29 @@ function D = FiniteObjectiveGradient(m, con, obj, opts)
 
 %% Work-up
 % Clean up inVuts
-assert(nargin >= 3, 'KroneckerBio:FiniteObjectiveGradient:AtLeastThreeInputs', 'FiniteObjectiveSensitivity requires at least 3 input arguments.')
+assert(nargin >= 3, 'KroneckerBio:FiniteObjectiveGradient:AtLeastThreeInputs', 'FiniteObjectiveGradient requires at least 3 input arguments.')
 if nargin < 4
     opts = [];
 end
 
-assert(isscalar(m), 'KroneckerBio:ObjectiveGradient:MoreThanOneModel', 'The model structure must be scalar')
+assert(isscalar(m), 'KroneckerBio:FiniteObjectiveGradient:MoreThanOneModel', 'The model structure must be scalar')
 
-% Options
+% Default options
+defaultOpts.Verbose        = 1;
+
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
 defaultOpts.UseModelICs    = false;
 defaultOpts.UseModelInputs = false;
+
 defaultOpts.UseParams      = 1:m.nk;
 defaultOpts.UseICs         = [];
 defaultOpts.UseControls    = [];
 
 defaultOpts.ObjWeights     = ones(size(obj));
+
 defaultOpts.Normalized     = true;
 defaultOpts.UseAdjoint     = true;
-
-defaultOpts.RelTol         = NaN;
-defaultOpts.AbsTol         = NaN;
-defaultOpts.Verbose        = 0;
 
 opts = mergestruct(defaultOpts, opts);
 
@@ -84,15 +86,18 @@ nk = m.nk;
 nCon = numel(con);
 nObj = size(obj, 1);
 
-% Ensure UseRates is column vector of logical indexes
+% Ensure UseParams is logical vector
 [opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
 useParamsInd = find(opts.UseParams);
 
-% Ensure UseICs is a matrix of logical indexes
+% Ensure UseICs is a logical matrix
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 useICsInd = find(opts.UseICs);
 
-nT = nTk + nTx;
+% Ensure UseControls is a cell vector of logical vectors
+[opts.UseControls nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, cat(1,con.nq));
+
+nT = nTk + nTx + nTq;
 
 % Store starting parameter sets
 k = m.k;
@@ -106,14 +111,13 @@ else
     end
 end
 
-% Standardize structures
-con = pastestruct(Uzero(m), con);
-obj = pastestruct(Gzero(m), obj);
+% Refresh conditions and objectives
+con = refreshCon(m, con);
+obj = refreshObj(m, con, obj, opts.UseParams, opts.UseICs, opts.UseControls);
 
 % Fix integration type
 [opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(con, obj);
 
-%% Tolerances
 % RelTol
 opts.RelTol = fixRelTol(opts.RelTol);
 
@@ -153,8 +157,8 @@ for iT = 1:nT
         else
             diff = 1e-8;
         end
-        x0up(useICsInd(iT-nVP)) = Ti + diff;
-        x0down(useICsInd(iT-nVP)) = Ti - diff;
+        x0up(useICsInd(iT-nTk)) = Ti + diff;
+        x0down(useICsInd(iT-nTk)) = Ti - diff;
     end
     
     % Upper parameter set

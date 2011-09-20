@@ -4,7 +4,7 @@ function useExperiments = ParameterExperimentElimination(m, con, obj, conPos, ob
 %   provide greater information in all directions.
 
 % Clean up inputs
-assert(nargin >= 6, 'KroneckerBio:BestParameterExperiment:AtLeastSixInputs', 'FindBestExperiment requies at least 6 input arguments.')
+assert(nargin >= 5, 'KroneckerBio:ParameterExperimentElimination:TooFewInputs', 'ParameterExperimentElimination requires at least 5 input arguments')
 if nargin < 8
     EFs = [];
     if nargin < 7
@@ -15,11 +15,26 @@ if nargin < 8
     end
 end
 
-% Options
+% Default options
+defaultOpts.Verbose        = 1;
+
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
+defaultOpts.UseModelICs    = false;
+defaultOpts.UseModelInputs = false;
+
+defaultOpts.UseParams      = 1:m.nk;
+defaultOpts.UseICs         = [];
+defaultOpts.UseControls    = [];
+
+defaultOpts.ObjWeights     = ones(size(obj));
+
+defaultOpts.Normalized     = true;
+defaultOpts.UseAdjoint     = true;
+
 defaultOpts.UseExperiments      = true(size(obj));
 defaultOpts.Cost                = zeros(size(obj));
 defaultOpts.Budget              = inf;
-defaultOpts.Verbose             = false;
 
 opts = mergestruct(defaultOpts, opts);
 

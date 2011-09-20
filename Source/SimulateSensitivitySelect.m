@@ -1,7 +1,7 @@
 function [varargout] = SimulateSensitivitySelect(m, con, tGet, opts)
-%SimulateSensitivitySelect integrates the sensitivities of every species with
-%   respect to every parameter over all time in the mass action kinetics
-%   framework and returns the values at select time points
+%SimulateSensitivitySelect Integrate the sensitivities of every species
+%   with respect to every parameter over all time in the mass action
+%   kinetics framework and returns the values at select time points
 %
 %   Mathematically: dx/dT = Integral(df/dx * dx/dT + df/dT, t=0:tF)
 %   
@@ -88,13 +88,15 @@ function [varargout] = SimulateSensitivitySelect(m, con, tGet, opts)
 
 %% Work-up
 % Clean up inputs
-assert(nargout <= 4, 'KroneckerBio:SimulateSensitivity:FourOrFewerOutputs', 'SimulateSensitivity must have between 0 and 4 outputs.')
-if nargin < 3
-    opts = [];
-    if nargin < 2
-        con = [];
-        if nargin < 1
-            m = [];
+if nargin < 4
+    if nargin < 3
+        tGet = [];
+        opts = [];
+        if nargin < 2
+            con = [];
+            if nargin < 1
+                m = [];
+            end
         end
     end
 end
@@ -105,17 +107,21 @@ if isnumeric(m)
     return
 end
 
-assert(isscalar(m), 'KroneckerBio:SimulateSensitivity:MoreThanOneModel', 'The model structure must be scalar')
+assert(nargin >= 3, 'KroneckerBio:SimulateSensitivitySelect:TooFewInputs', 'SimulateSensitivitySelect requires at least 2 input arguments')
+assert(nargout <= 4, 'KroneckerBio:SimulateSensitivitySelect:FourOrFewerOutputs', 'SimulateSensitivitySelect must have between 0 and 4 outputs')
+assert(isscalar(m), 'KroneckerBio:SimulateSensitivitySelect:MoreThanOneModel', 'The model structure must be scalar')
 
-% Options
+% Default options
+defaultOpts.Verbose        = 1;
+
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
 defaultOpts.UseModelICs    = false;
 defaultOpts.UseModelInputs = false;
+
 defaultOpts.UseParams      = 1:m.nk;
 defaultOpts.UseICs         = [];
-defaultOpts.UseControls    = [];%TODO
-defaultOpts.AbsTol         = NaN;
-defaultOpts.RelTol         = NaN;
-defaultOpts.Verbose        = 0;
+defaultOpts.UseControls    = [];
 
 opts = mergestruct(defaultOpts, opts);
 
@@ -128,19 +134,25 @@ ny = m.ny;
 nk = m.nk;
 nCon = numel(con);
 
-% Ensure UseRates is column vector of logical indexes
+% Ensure UseParams is logical vector
 [opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
 
-% Ensure UseICs is a matrix of linear indexes
+% Ensure UseICs is a logical matrix
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 
-nT = nTx + nTk;
+% Ensure UseControls is a cell vector of logical vectors
+[opts.UseControls nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, cat(1,con.nq));
+
+nT = nTk + nTx + nTq;
+
+% Refresh conditions
+con = refreshCon(m, con);
 
 % RelTol
 opts.RelTol = fixRelTol(opts.RelTol);
 
 % Fix AbsTol to be a cell array of vectors appropriate to the problem
-opts.AbsTol = fixAbsTol(opts.AbsTol, 2, false(nCon,1), nx, nCon, false, opts.UseParams, opts.UseICs, opts.UseModelICs);
+opts.AbsTol = fixAbsTol(opts.AbsTol, 2, false(nCon,1), nx, nCon, false, opts.UseModelICs, opts.UseModelInputs, opts.UseParams, opts.UseICs, opts.UseControls);
 
 %% Run integration for each experiment
 sim = emptystruct(nCon, 'Type', 'Name', 't', 'y', 'x', 'dydT', 'dxdT', 'sol');

@@ -1,4 +1,4 @@
-function T = collectActiveParameters(m, con, useParams, useICs, useModelICs)
+function T = collectActiveParameters(m, con, useModelICs, useModelInputs, useParams, useICs, useControls)
 
 % Constants
 nCon = size(con, 1);
@@ -16,5 +16,15 @@ else
     end
 end
 
+if useModelInputs
+    q = m.q;
+else
+    q = zeros(sum(con.nq),1);
+    index = 0;
+    for iCon = 1:nCon
+        q(index+1:index+con(iCon).nq) = con(iCon).q;
+    end
+end
+
 % Construct starting variable parameter set
-T = [k(useParams); vec(x0(useICs))];
+T = [k(useParams); vec(x0(useICs)); q(cat(1, useControls{:}))];

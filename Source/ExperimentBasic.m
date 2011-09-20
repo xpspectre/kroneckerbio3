@@ -62,7 +62,7 @@ end
 
 % Numeric
 if isnumeric(u)
-    value = u;
+    value = vec(u);
     % Standardize empty as zeros(0,1)
     if isempty(value)
         value = zeros(0,1);

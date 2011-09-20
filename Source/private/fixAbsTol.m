@@ -1,5 +1,9 @@
-function abstol = fixAbsTol(absTol, order, integrateObj, nx, nCon, useAdjoint, useParams, useICs, useModelICs, selfSensitivities)
+function abstol = fixAbsTol(absTol, order, integrateObj, nx, nCon, useAdjoint, useModelICs, useModelInputs, useParams, useICs, useControls, selfSensitivities)
 %FIXABSTOL Standardize the presentation of AbsTol
+%
+%   abstol = fixAbsTol(absTol, order, integrateObj, nx, nCon, useAdjoint,
+%   useModelICs, useModelInputs, useParams, useICs, useControls, 
+%   selfSensitivities)
 %
 %   There are many ways to present the absolute integration tolerance to
 %   KroneckerBio. This function is the processing center for these
@@ -12,16 +16,22 @@ function abstol = fixAbsTol(absTol, order, integrateObj, nx, nCon, useAdjoint, u
 % This work is released under the MIT license.
 
 % Clean up inputs
-if nargin < 10
+if nargin < 12
     selfSensitivities = false;
-    if nargin < 9
-        useModelICs = [];
-        if nargin < 8
+    if nargin < 11
+        useControls = {};
+        if nargin < 10
             useICs = [];
-            if nargin < 7
+            if nargin < 9
                 useParams = [];
-                if nargin < 6
-                    useAdjoint = [];
+                if nargin < 8
+                    useModelICs = [];
+                    if nargin < 7
+                        useModelInputs = [];
+                        if nargin < 6
+                            useAdjoint = [];
+                        end
+                    end
                 end
             end
         end
@@ -49,7 +59,8 @@ end
 % Constants
 nTk = sum(useParams);
 nTx = sum(sum(useICs));
-nT = nTk + nTx;
+nTq = sum(cat(1, useControls{:}));
+nT = nTk + nTx + nTq;
 
 abstol = cell(nCon,1);
 
@@ -215,25 +226,34 @@ switch order
             % Process each vector in each cell
             assert(numel(absTol) >= nCon, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol was provided as a cell vector of length %i, but the cell vector is too short for the number of experiments %i', numel(absTol), nCon)
             for i = 1:nCon
+                % If opts.UseModelICs is false, the number of variables can change
+                if useModelICs
+                    inTx = nTx;
+                else
+                    inTx = nnz(useICs(:,i));
+                end
+                
+                % If opts.UseModelInputs is false, the number of variables can change
+                if useModelInputs
+                    inTq = nTq;
+                else
+                    inTq = nnz(useControls{i});
+                end
+                
+                inT = nTk + inTx + inTq;
+                
                 if useAdjoint
                     if isscalar(absTol{i})
                         % Copy the value to all species and conditions
-                        abstol{i} = zeros(nx+integrateObj(i)+nx+nT,1) + absTol{i};
+                        abstol{i} = zeros(nx+integrateObj(i)+nx+nTk+inTq,1) + absTol{i};
                     else %isvector
                         % Verify vector length
-                        assert(numel(absTol{i}) == nx+integrateObj(i)+nx+nT, 'KroneckerBio:AbsTol:InvalidAbsTolLength', 'That is not a valid length for AbsTol')
+                        assert(numel(absTol{i}) == nx+integrateObj(i)+nx+nTk+inTq, 'KroneckerBio:AbsTol:InvalidAbsTolLength', 'That is not a valid length for AbsTol')
                         abstol{i} = absTol{i};
                     end
                 else %~useAdjoint
                     if isscalar(absTol{i})
                         % AbsTol is starting scalar
-                        if useModelICs
-                            % Number of parameters is constant across conditions
-                            inT = nT;
-                        else
-                            % Number of x0 parameters may vary across conditions
-                            inT = sum(useICs(:,i)) + nTk;
-                        end
                         abstol{i} = zeros(nx+integrateObj(i)+nx*inT+integrateObj(i)*inT,1) + absTol{i};
                     elseif numel(absTol{i}) == nx*(nT+1)
                         % AbsTol is not provided for continuous objective,

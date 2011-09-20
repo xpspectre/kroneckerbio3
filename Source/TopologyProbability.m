@@ -1,5 +1,12 @@
 function [pmy pyTm F m] = TopologyProbability(m, con, obj, opts, F)
+% TopologyProbability Compute the relative probability that each member of
+%   a set of topologies is true according to a set of
+%   information-theory-based objective functions
+%
+%   [pmy pyTm F m] = TopologyProbability(m, con, obj, opts)
+
 % Clean up inputs
+assert(nargin >= 3, 'KroneckerBio:TopologyProbability:TooFewInputs', 'TopologyProbability requires at least 3 input arguments')
 if nargin < 5
     F = [];
     if nargin < 4
@@ -12,22 +19,28 @@ nTop = numel(m);
 nCon = size(con,1);
 nObj = size(obj,1);
 
-% Options
-defaultOpts.RelTol         = NaN; % in fixRelTol
-defaultOpts.AbsTol         = NaN; % in fixAbsTol
-defaultOpts.UseModelICs    = false;
-defaultOpts.UseAdjoint     = false;
+% Default options
+defaultOpts.Verbose        = 1;
 
-defaultOpts.UseParams      = NaN; % All kinetic parameters
-defaultOpts.UseICs         = NaN; % No initial conditions
-defaultOpts.UseControls    = [];
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
+defaultOpts.UseModelICs    = false;
+defaultOpts.UseModelInputs = false;
+
+defaultOpts.UseParams      = NaN;
+defaultOpts.UseICs         = NaN;
+defaultOpts.UseControls    = NaN;
+
+defaultOpts.ObjWeights     = ones(size(obj));
+
+defaultOpts.Normalized     = true;
+defaultOpts.UseAdjoint     = true;
 
 defaultOpts.PriorTopology  = zeros(nTop,1) + 1/nTop; % Uniform prior
 defaultOpts.NeedFit        = true; % Fit the parameters
 
-defaultOpts.Verbose        = 0;
-
 opts = mergestruct(defaultOpts, opts);
+
 verbose = logical(opts.Verbose);
 opts.Verbose = max(opts.Verbose-1,0);
 
@@ -37,6 +50,19 @@ nk = zeros(nTop,1);
 for iTop = 1:nTop
     nx(iTop) = m(iTop).nx;
     nk(iTop) = m(iTop).nk;
+end
+
+%% Standardize structures
+% Experimental conditions
+assert((size(con,2) == 1 && (opts.UseModelICs || all(nx == nx(1)))) || size(con,2) == nTop, 'KroneckerBio:TopologyProbability:ConSize', 'Second dimension of input "con" must be equal to numel(m) or 1 if opts.UseModelICs is false or every model has the same number of species')
+if size(con,2) == 1
+    con = repmat(con, 1,nTop);
+end
+
+% Objective functions
+assert(size(obj,3) == 1 || size(obj,3) == nTop, 'KroneckerBio:TopologyProbability:ObjSize', 'Third dimension of input "obj" must be equal to numel(m) or 1')
+if size(obj,3) == 1
+    obj = repmat(obj, [1,1,nTop]);
 end
 
 %% Active Parameters
@@ -77,26 +103,15 @@ for iTop = 1:nTop
 end
 
 % Ensure UseControls is a cell array of logical vectors
-% nTq = zeros(nTop,1);
-% for iTop = 1:nTop
-%     opts.UseControls{iTop} = TODO;
-% end
-
-nT = nTk + nTx;
-
-%% Standardize structures
-% Experimental conditions
-assert((size(con,2) == 1 && (opts.UseModelICs || all(nx == nx(1)))) || size(con,2) == nTop, 'KroneckerBio:TopologyProbability:ConSize', 'Second dimension of input "con" must be equal to numel(m) or 1 if opts.UseModelICs is false or every model has the same number of species')
-if size(con,2) == 1
-    con = repmat(con, 1,nTop);
+nTq = zeros(nTop,1);
+for iTop = 1:nTop
+    [opts.UseControls{iTop} nTq(iTop)] = fixUseControls(opts.UseControls{iTop}, opts.UseModelInputs, nCon, m(iTop).nq, cat(1,con(:,iTop).nq));
 end
+
+nT = nTk + nTx + nTq;
+
+%% Refresh structures
 con = refreshCon(m, con);
-
-% Objective functions
-assert(size(obj,3) == 1 || size(obj,3) == nTop, 'KroneckerBio:TopologyProbability:ObjSize', 'Third dimension of input "obj" must be equal to numel(m) or 1')
-if size(obj,3) == 1
-    obj = repmat(obj, [1,1,nTop]);
-end
 obj = refreshObj(m, con, obj, opts.UseParams, opts.UseICs, opts.UseControls);
 
 %% Tolerances
@@ -125,8 +140,8 @@ if isnumeric(opts.UpperBound)
     opts.UpperBound = repmat({opts.UpperBound}, nTop,1);
 end
 for iTop = 1:nTop
-    opts.LowerBound{iTop} = fixBounds(opts.LowerBound{iTop}, opts.UseParams{iTop}, opts.UseICs{iTop}, opts.UseModelICs);
-    opts.UpperBound{iTop} = fixBounds(opts.UpperBound{iTop}, opts.UseParams{iTop}, opts.UseICs{iTop}, opts.UseModelICs);
+    opts.LowerBound{iTop} = fixBounds(opts.LowerBound{iTop}, opts.UseModelICs, opts.UseModelInputs, opts.UseParams{iTop}, opts.UseICs{iTop}, opts.UseControls{iTop});
+    opts.UpperBound{iTop} = fixBounds(opts.UpperBound{iTop}, opts.UseModelICs, opts.UseModelInputs, opts.UseParams{iTop}, opts.UseICs{iTop}, opts.UseControls{iTop});
 end
 
 %% Distribute options for topology specific functions
@@ -137,7 +152,7 @@ for iTop = 1:nTop
     if ~opts.UseModelICs
         optsTop(iTop).UseICs  = optsTop(iTop).UseICs(:,1:nCon);
     end
-    optsTop(iTop).UseControls = opts.UseControls(:,iTop);
+    optsTop(iTop).UseControls = opts.UseControls{iTop};
     optsTop(iTop).AbsTol      = opts.AbsTol{iTop};
     optsTop(iTop).LowerBound  = opts.LowerBound{iTop};
     optsTop(iTop).UpperBound  = opts.UpperBound{iTop};
@@ -164,7 +179,7 @@ end
 lambda = cell(nTop,1);
 for iTop = 1:nTop
     % Eigendecompose
-    lambda{iTop} = eig(F{iTop});
+    lambda{iTop} = infoeig(F{iTop});
     
     % Bend flat directions
     lambda{iTop}(lambda{iTop} < 1e-16) = 1e-16;

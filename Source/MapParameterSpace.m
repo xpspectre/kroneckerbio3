@@ -8,20 +8,32 @@ function varargout = MapParameterSpace(m, con, obj, opts)
 
 %% Work-up
 % Clean up inputs
+assert(nargin >= 3, 'KroneckerBio:MapParameterSpace:TooFewInputs', 'MapParameterSpace requires at least 3 input arguments')
 if nargin < 4
     opts = [];
 end
 
-% Options
-defaultOpts.UseModelICs     = false;
-defaultOpts.UseModelInputs  = false;
-defaultOpts.UseControls     = [];%TODO
-defaultOpts.MapMethod       = 'enum';
-defaultOpts.UseParams       = 1:m.nk;
-defaultOpts.UseICs          = [];
+assert(isscalar(m), 'KroneckerBio:MapParameterSpace:MoreThanOneModel', 'The model structure must be scalar')
+
+% Default options
+defaultOpts.Verbose        = 1;
+
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
+defaultOpts.UseModelICs    = false;
+defaultOpts.UseModelInputs = false;
+
+defaultOpts.UseParams      = 1:m.nk;
+defaultOpts.UseICs         = [];
+defaultOpts.UseControls    = [];
+
+defaultOpts.ObjWeights     = ones(size(obj));
+
+defaultOpts.Normalized     = true;
+defaultOpts.UseAdjoint     = true;
+
 defaultOpts.SampleCount     = 3;
 defaultOpts.Pairs           = 'all';
-defaultOpts.Normalized      = true;
 defaultOpts.ToPlot          = false;
 defaultOpts.PlotProgress    = false;
 defaultOpts.PlotType        = 'contour';
@@ -46,15 +58,16 @@ nk = m.nk;
 nCon = numel(con);
 nObj = size(obj,1);
 
-% Ensure UseRates is column vector of logical indexes
+% Ensure UseParams is logical vector
 [opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
-useParamsInd = find(opts.UseParams);
 
-% Ensure UseICs is a matrix of logical indexes
+% Ensure UseICs is a logical matrix
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
-useICsInd = find(opts.UseICs);
 
-nT = nTx + nTk;
+% Ensure UseControls is a cell vector of logical vectors
+[opts.UseControls nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, cat(1,con.nq));
+
+nT = nTk + nTx + nTq;
 
 opts.LowerBound = fixBounds(opts.LowerBound, opts.UseParams, opts.UseICs, opts.UseModelICs);
 opts.UpperBound = fixBounds(opts.UpperBound, opts.UseParams, opts.UseICs, opts.UseModelICs);

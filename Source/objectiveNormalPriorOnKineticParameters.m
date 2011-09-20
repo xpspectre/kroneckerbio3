@@ -1,4 +1,4 @@
-function obj = constructObjectiveParameterKineticNormal(m, kbar, Vkbar, UseParams, normalized, name)
+function obj = objectiveNormalPriorOnKineticParameters(m, kbar, Vkbar, UseParams, normalized, name)
 
 % Clean up inputs
 if nargin < 6
@@ -29,9 +29,6 @@ end
 % Check inputs
 n = numel(kbar);
 assert(ndims(Vkbar) == 2 && all(size(Vkbar) == [n,n]), 'KroneckerBio:constructObjectiveParameterNormal:Vsize', 'Input "Vkbar" must be a square matrix of numel(kbar)')
-
-% Find unique times
-discreteTimes = 0;
 
 % Constants
 nx = m.nx;
@@ -74,7 +71,7 @@ obj.Name = name;
 obj.Continuous    = false;
 obj.Complex       = false;
 obj.Linked        = 0;
-obj.DiscreteTimes = discreteTimes;
+obj.DiscreteTimes = 0;
 
 obj.G      = @G;
 obj.dGdk   = @dGdk;
@@ -93,7 +90,7 @@ obj.Update = @update;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     function [val stopTimes] = G(sol)
-        stopTimes = discreteTimes;
+        stopTimes = 0;
         diff = Tk - Tkbar;
         val = diff.' * FTbark * diff;
     end
@@ -181,6 +178,6 @@ obj.Update = @update;
             newUseParams = UseParams;
         end
         
-        objNew = constructObjectiveParameterKineticNormal(m, kbar, Vkbar, newUseParams, normalized);
+        objNew = objectiveNormalPriorOnKineticParameters(m, kbar, Vkbar, newUseParams, normalized);
     end
 end

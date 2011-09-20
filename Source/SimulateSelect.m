@@ -1,6 +1,6 @@
 function [varargout] = SimulateSelect(m, con, tGet, opts)
-%SimulateSelect integrates the concentration of every species over time
-%   using mass action kinetics and returns the values at select time points
+%SimulateSelect Integrate the concentration of every species over time
+%   using mass action kinetics and return the values at select time points
 %
 %   Mathematically: x = Integral(f, t=0:tF)
 %   
@@ -73,7 +73,6 @@ function [varargout] = SimulateSelect(m, con, tGet, opts)
 
 %% Work-up
 % Clean up inputs
-assert(nargout <= 4, 'KroneckerBio:Simulate:FourOrFewerOutputs', 'Simulate must have between 0 and 4 outputs.')
 if nargin < 4
     opts = [];
     if nargin < 3
@@ -93,14 +92,17 @@ if isnumeric(m)
     return
 end
 
-assert(isscalar(m), 'KroneckerBio:Simulate:MoreThanOneModel', 'The model structure must be scalar')
+assert(nargin >= 3, 'KroneckerBio:SimulateSelect:TooFewInputs', 'SimulateSelect requires at least 2 input arguments')
+assert(nargout <= 4, 'KroneckerBio:SimulateSelect:FourOrFewerOutputs', 'SimulateSelect must have between 0 and 4 outputs')
+assert(isscalar(m), 'KroneckerBio:SimulateSelect:MoreThanOneModel', 'The model structure must be scalar')
 
-% Options
-defaultOpts.UseModelICs    = false;
-defaultOpts.UseModelInputs = false;
+% Default options
+defaultOpts.Verbose        = 1;
+
 defaultOpts.RelTol         = NaN;
 defaultOpts.AbsTol         = NaN;
-defaultOpts.Verbose        = 0;
+defaultOpts.UseModelICs    = false;
+defaultOpts.UseModelInputs = false;
 
 opts = mergestruct(defaultOpts, opts);
 
@@ -110,6 +112,9 @@ opts.Verbose = max(opts.Verbose-1,0);
 % Constants
 nx = m.nx;
 nCon = numel(con);
+
+% Refresh conditions
+con = refreshCon(m, con);
 
 % RelTol
 opts.RelTol = fixRelTol(opts.RelTol);

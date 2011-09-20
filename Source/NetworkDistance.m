@@ -50,12 +50,15 @@ function net = NetworkDistance(m, maxn, reflect)
 
 % TODO: add ability to include dfdu as well
 % Clean up inputs
+assert(nargin >= 1, 'KroneckerBio:NetworkDistance:TooFewInputs', 'NetworkDistance requires at least 1 input arguments')
 if nargin < 3
     reflect = [];
     if nargin < 2
         maxn = [];
     end
 end
+
+assert(isscalar(m), 'KroneckerBio:NetworkDistance:MoreThanOneModel', 'The model structure must be scalar')
 
 % Constants
 nx = m.nx;

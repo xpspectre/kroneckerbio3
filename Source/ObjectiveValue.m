@@ -1,5 +1,5 @@
 function G = ObjectiveValue(m, con, obj, opts)
-%ObjectiveValue evaluates a set of objective functions
+%ObjectiveValue Evaluate a set of objective functions
 %
 %   G = ObjectiveValue(m, con, obj, opts)
 %   
@@ -56,23 +56,29 @@ function G = ObjectiveValue(m, con, obj, opts)
 
 %% Work-up
 % Clean up inputs
+assert(nargin >= 3, 'KroneckerBio:ObjectiveValue:TooFewInputs', 'ObjectiveValue requires at least 3 input arguments')
 if nargin < 4
     opts = [];
 end
 
 assert(isscalar(m), 'KroneckerBio:ObjectiveValue:MoreThanOneModel', 'The model structure must be scalar')
 
-% Options
-defaultOpts.UseModelICs    = true;
+% Default options
+defaultOpts.Verbose        = 1;
+
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
+defaultOpts.UseModelICs    = false;
 defaultOpts.UseModelInputs = false;
+
 defaultOpts.UseParams      = 1:m.nk;
 defaultOpts.UseICs         = [];
 defaultOpts.UseControls    = [];
 
 defaultOpts.ObjWeights     = ones(size(obj));
-defaultOpts.RelTol         = NaN;
-defaultOpts.AbsTol         = NaN;
-defaultOpts.Verbose        = 0;
+
+defaultOpts.Normalized     = true;
+defaultOpts.UseAdjoint     = true;
 
 opts = mergestruct(defaultOpts, opts);
 
@@ -81,12 +87,13 @@ nx = m.nx;
 nk = m.nk;
 nCon = numel(con);
 
-% Ensure UseRates is column vector of logical indexes
+% Ensure UseParams is logical vector
 [opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
 
-% Ensure UseICs is a matrix of linear indexes
+% Ensure UseICs is a logical matrix
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 
+% Ensure UseControls is a cell vector of logical vectors
 [opts.UseControls nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, cat(1,con.nq));
 
 nT = nTk + nTx + nTq;
@@ -98,7 +105,6 @@ obj = refreshObj(m, con, obj, opts.UseParams, opts.UseICs, opts.UseControls);
 % Fix integration type
 [opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(con, obj);
 
-%% Tolerances
 % RelTol
 opts.RelTol = fixRelTol(opts.RelTol);
 

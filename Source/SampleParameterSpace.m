@@ -105,6 +105,7 @@ function Ts = SampleParameterSpace(m, con, obj, n, opts)
 % This work is released under the MIT license.
 
 % Clean up inputs
+assert(nargin >= 4, 'KroneckerBio:SampleParameterSpace:TooFewInputs', 'SampleParameterSpace requires at least 4 input arguments')
 if nargin < 5
     opts = [];
 end
@@ -114,21 +115,27 @@ assert(isscalar(n) && n >= 0 && round(n) == n, 'KroneckerBio:SampleParameterSpac
 
 %% Options
 % Default options
-defaultOpts.UseModelICs     = false;
-defaultOpts.UseModelInputs  = false;
-defaultOpts.UseParams       = 1:m.nk;
-defaultOpts.UseICs          = [];
-defaultOpts.UseControls     = [];
+defaultOpts.Verbose        = 1;
 
-defaultOpts.Normalized      = true;
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
+defaultOpts.UseModelICs    = false;
+defaultOpts.UseModelInputs = false;
+
+defaultOpts.UseParams      = 1:m.nk;
+defaultOpts.UseICs         = [];
+defaultOpts.UseControls    = [];
+
+defaultOpts.ObjWeights     = ones(size(obj));
+
+defaultOpts.Normalized     = true;
+defaultOpts.UseAdjoint     = true;
 
 defaultOpts.AdaptAcceptance = true; % Adapt the acceptance ratio
 defaultOpts.LowerAcceptance = 0.15; % The lowest acceptance ratio that is good
 defaultOpts.UpperAcceptance = 0.5;  % The highest acceptance ratio that is good
 defaultOpts.MaxStepSize     = 1;    % Uncertainty vectors with 95% CI stetching more than this fold change are truncated
 defaultOpts.StepsPerCheck   = 100;  % Number of steps between checks on the acceptance rate
-
-defaultOpts.Verbose         = 0;
 
 opts = mergestruct(defaultOpts, opts);
 
@@ -141,12 +148,13 @@ nk = m.nk;
 nCon = numel(con);
 nObj = size(obj,1);
 
-% Ensure UseRates is column vector of logical indexes
+% Ensure UseParams is logical vector
 [opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
 
-% Ensure UseICs is a matrix of logical indexes
+% Ensure UseICs is a logical matrix
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 
+% Ensure UseControls is a cell vector of logical vectors
 [opts.UseControls nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, cat(1,con.nq));
 
 nT = nTk + nTx + nTq;

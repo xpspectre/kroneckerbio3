@@ -1,5 +1,5 @@
 function m = LoadModel(files)
-%LoadModel loads a model from files using various methods
+%LoadModel Load a model from files using various methods
 %
 %   m = LoadModel(files)
 %
@@ -30,7 +30,8 @@ end
 if strcmp(files{1}(end-3:end), '.txt')
     % Kronecker mass action model
     m = LoadModelMassAction(files);
-elseif strcmp(files{1}(end-3:end), '.xml') || strcmp(files{1}(end-4:end), '.sbml') && numel(files) == 1
+elseif strcmp(files{1}(end-3:end), '.xml') || strcmp(files{1}(end-4:end), '.sbml')
+    assert(numel(files) == 1, 'KroneckerBio:LoadModel:OneFileForSbml', 'Only one SBML model can be loaded at once')
     % SBML model
     try
         m = LoadModelSbmlMassAction(files{1});

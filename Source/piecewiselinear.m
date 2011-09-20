@@ -36,16 +36,14 @@ val = zeros(count,size(pvalues,2));
 
 for ind = 1:count
     k  = find(t(ind) >= tvalues, 1, 'last');
-    %not bigger than any of them, so take the first
     if isempty(k)
+        % Not bigger than any of them, so take the first
         val(ind,:) = pvalues(1,:);
-        
-    %is greater than or equal to the largest one, so take the last
+        % Is greater than or equal to the largest one, so take the last
     elseif k == length(tvalues);
         val(ind,:) = pvalues(k,:);
-        
-    %is between tvalues
     else
+        % Is between tvalues
         dt = t(ind) - tvalues(k);
         T  = tvalues(k+1) - tvalues(k);
         

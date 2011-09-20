@@ -18,8 +18,5 @@ if nargin < 2
     dim = [];
 end
 
-% Ignore those entries that are exactly zero
-legit = (p > 0);
-
 % Compute entropy
-S = -sum(p(legit) .* log(p(legit)), dim);
+S = -nansum(p .* log(p), dim);

@@ -1,5 +1,5 @@
 function m = LoadModelSbmlMassAction(SimbioModel, opts)
-%LoadModelSbmlMassAction loads a mass action model from an SBML file, a
+%LoadModelSbmlMassAction Load a mass action model from an SBML file, a
 %   SimBiology model, or a symbolic model
 %
 %   m = LoadModelSbmlMassAction(SimbioModel, opts)
@@ -9,7 +9,7 @@ function m = LoadModelSbmlMassAction(SimbioModel, opts)
 %                  symbolic model scalar]
 %       This can be a path to an SBML file, a Simbiology Model, or a
 %       symbolic model.
-%   opts: [ options struct]
+%   opts: [ options struct ]
 %       Optional
 %       .Verbose [ nonnegative integer scalar {1} ]
 %           Bigger number displays more progress information
@@ -35,5 +35,5 @@ if strcmp(SimbioModel.Type, 'sbiomodel')
     SimbioModel = simbio2Symbolic(SimbioModel, opts);
 end
 
-% Use symbolic2MassAction to convert a symbolic model to a kronecker mass action model
+% Use symbolic2MassAction to convert a symbolic model to a Kronecker mass action model
 m = symbolic2MassAction(SimbioModel,opts);

@@ -1,6 +1,6 @@
 function m = LoadModelMassAction(files)
-%LoadModelMassAction loads a model from the standard Kronecker Bio model
-%   file format
+%LoadModelMassAction Load a model from the standard Kronecker model file
+%   format
 %
 %   m = LoadModelMassAction(filenames)
 %
@@ -115,6 +115,7 @@ for iFile = 1:nFiles
             if mode == 1
                 % Compartments
                 tokens = vec(regexp(line, ',|".*"|[^\s,]*','match'));
+                assert(numel(tokens) >= 3, 'KroneckerBio:LoadModelMassAction:InsufficientCompartmentInformation', 'Line %i in %s does not provide the name, dimension, and volume required for a compartment: %s', lineNumber, files{iFile}, line)
                 
                 % Extract compartment name
                 assert(~isempty(regexp(tokens{1}, '^[^\s,.]*$', 'once')), 'KroneckerBio:LoadModelMassAction:InvalidName', 'Line %i in %s has an invalid compartment name: %s', lineNumber, files{iFile}, line)

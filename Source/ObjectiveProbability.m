@@ -1,5 +1,5 @@
 function p = ObjectiveProbability(m, con, obj, opts)
-%ObjectiveProbability evaluates the likelihood of a set of 
+%ObjectiveProbability Evaluate the likelihood of a set of 
 %   information-theory-based objective functions
 %
 %   p = ObjectiveProbability(m, con, obj, opts)
@@ -35,6 +35,12 @@ function p = ObjectiveProbability(m, con, obj, opts)
 %           Which input control parameters the gradient will be calculated
 %           on Has an effect only if the objective function is sensitive to
 %           this parameter
+%     	.ObjWeights [ real matrix nObj by nCon {ones(nObj,nCon)} ]
+%           Applies a post evaluation weight on each objective function
+%           in terms of how much it will contribute to the final objective
+%           function value. This only affects the continuous objective
+%           function integration. We can't think of a reason to ever set it
+%           as anything other than 1.
 %       .RelTol [ nonnegative scalar {1e-6} ]
 %           Relative tolerance of the integration
 %       .AbsTol [ cell vector of nonnegative vectors | nonnegative vector |
@@ -53,24 +59,32 @@ function p = ObjectiveProbability(m, con, obj, opts)
 
 %% Work-up
 % Clean up inputs
+assert(nargin >= 3, 'KroneckerBio:ObjectiveProbability:TooFewInputs', 'ObjectiveProbability requires at least 3 input arguments')
 if nargin < 4
     opts = [];
 end
 
 assert(isscalar(m), 'KroneckerBio:ObjectiveProbability:MoreThanOneModel', 'The model structure must be scalar')
 
-% Options
-defaultOpts.UseModelICs    = true;
+% Default options
+defaultOpts.Verbose        = 1;
+
+defaultOpts.RelTol         = NaN;
+defaultOpts.AbsTol         = NaN;
+defaultOpts.UseModelICs    = false;
 defaultOpts.UseModelInputs = false;
+
 defaultOpts.UseParams      = 1:m.nk;
 defaultOpts.UseICs         = [];
 defaultOpts.UseControls    = [];
 
-defaultOpts.RelTol         = NaN;
-defaultOpts.AbsTol         = NaN;
-defaultOpts.Verbose        = 0;
+defaultOpts.ObjWeights     = ones(size(obj));
+
+defaultOpts.Normalized     = true;
+defaultOpts.UseAdjoint     = true;
 
 opts = mergestruct(defaultOpts, opts);
+
 verbose = logical(opts.Verbose);
 opts.Verbose = max(opts.Verbose-1,0);
 
@@ -80,15 +94,16 @@ nk = m.nk;
 nCon = numel(con);
 nObj = size(obj,1);
 
-% Ensure UseRates is column vector of logical indexes
+% Ensure UseParams is logical vector
 [opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
 
-% Ensure UseICs is a matrix of logical indexes
+% Ensure UseICs is a logical matrix
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 
+% Ensure UseControls is a cell vector of logical vectors
 [opts.UseControls nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, cat(1,con.nq));
 
-nT = nTx + nTk;
+nT = nTk + nTx + nTq;
 
 % Refresh conditions and objectives
 con = refreshCon(m, con);
@@ -97,7 +112,6 @@ obj = refreshObj(m, con, obj, opts.UseParams, opts.UseICs, opts.UseControls);
 % Fix integration type
 [opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(con, obj);
 
-%% Tolerances
 % RelTol
 opts.RelTol = fixRelTol(opts.RelTol);
 

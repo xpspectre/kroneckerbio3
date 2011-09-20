@@ -45,6 +45,7 @@ nNegInf = numel(negInfInd);
 nPosInf = numel(posInfInd);
 
 % Correct for empty cases
+if isempty(zeroInd);   zeroInd   = zeros(0,1); end
 if isempty(negInfInd); negInfInd = zeros(0,1); end
 if isempty(posInfInd); posInfInd = zeros(0,1); end
 

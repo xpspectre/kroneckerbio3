@@ -1,10 +1,6 @@
 function [F All] = ObjectiveInformation(m, con, obj, opts, dxdTSol)
-%OBJECTIVEINFORMATION Compute the fisher information matrix of an objective
-%   function.
-%
-%   Given a model and experimental conditions, this function computes the
-%   fisher information matrix provided by the objective function, given the
-%   model and conditions and evaluated at p.
+%ObjectiveInformation Compute the Fisher information matrix of a set of
+%   objective functions
 %
 %   Mathematically: F = dy/dp' * V^-1 * dy/dp
 %
@@ -61,7 +57,7 @@ function [F All] = ObjectiveInformation(m, con, obj, opts, dxdTSol)
 
 %% Work-up
 % Clean up inputs
-assert(nargin >= 3, 'KroneckerBio:ObjectiveInformation:AtLeastThreeInputs', 'ObjectiveExpectedHessian requires at least 3 input arguments.')
+assert(nargin >= 3, 'KroneckerBio:ObjectiveInformation:AtLeastThreeInputs', 'ObjectiveInformation requires at least 3 input arguments')
 if nargin < 5
     dxdTSol = [];
     if nargin < 4
@@ -71,16 +67,22 @@ end
 
 assert(isscalar(m), 'KroneckerBio:ObjectiveInformation:MoreThanOneModel', 'The model structure must be scalar')
 
-% Options
-defaultOpts.UseParams      = 1:m.nk;
-defaultOpts.UseICs         = [];
-defaultOpts.UseControls    = [];%TODO
-defaultOpts.UseModelICs    = true;
-defaultOpts.UseModelInputs = false;
-defaultOpts.Normalized     = true;
+% Default options
+defaultOpts.Verbose        = 1;
+
 defaultOpts.RelTol         = NaN;
 defaultOpts.AbsTol         = NaN;
-defaultOpts.Verbose        = 0;
+defaultOpts.UseModelICs    = false;
+defaultOpts.UseModelInputs = false;
+
+defaultOpts.UseParams      = 1:m.nk;
+defaultOpts.UseICs         = [];
+defaultOpts.UseControls    = [];
+
+defaultOpts.ObjWeights     = ones(size(obj));
+
+defaultOpts.Normalized     = true;
+defaultOpts.UseAdjoint     = true;
 
 opts = mergestruct(defaultOpts, opts);
 
@@ -93,40 +95,37 @@ nk = m.nk;
 nCon = length(con);
 nObj = size(obj, 1);
 
-% Ensure UseRates is column vector of logical indexes
+% Ensure UseParams is logical vector
 [opts.UseParams, nTk] = fixUseParams(opts.UseParams, nk);
 
-% Ensure UseICs is a matrix of logical indexes
+% Ensure UseICs is a logical matrix
 [opts.UseICs, nTx] = fixUseICs(opts.UseICs, opts.UseModelICs, nx, nCon);
 
-% Ensure UseControls is a matrix of logical indexes
-nqCon = cell2mat(vec({con.nq}));
-[opts.UseControls, nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, nqCon);
+% Ensure UseControls is a cell vector of logical vectors
+[opts.UseControls nTq] = fixUseControls(opts.UseControls, opts.UseModelInputs, nCon, m.nq, cat(1,con.nq));
+
+nT = nTk + nTx + nTq;
 
 % Standardize structures
 con = refreshCon(m, con);
-obj = refreshObj(m, con, obj, {opts.UseParams}, {opts.UseICs}, opts.UseControls);
+obj = refreshObj(m, con, obj, opts.UseParams, opts.UseICs, opts.UseControls);
+
+% Construct starting variable parameter set
+T = collectActiveParameters(m, con, opts.UseModelICs, opts.UseModelInputs, opts.UseParams, opts.UseICs, opts.UseControls);
 
 % Fix integration type
 [opts.continuous, opts.complex, opts.tGet] = fixIntegrationType(con, obj);
 
-nT = nTx + nTk + nTq;
-
-% Make solutions consistent as cell vectors
-if isstruct(dxdTSol)
-    dxdTSol = num2cell(dxdTSol);
-end
-
-%% Tolerances
 % RelTol
 opts.RelTol = fixRelTol(opts.RelTol);
 
 % Fix AbsTol to be a cell array of vectors appropriate to the problem
-opts.AbsTol = fixAbsTol(opts.AbsTol, 2, opts.continuous, nx, nCon, false, opts.UseParams, opts.UseICs, opts.UseModelICs);
+opts.AbsTol = fixAbsTol(opts.AbsTol, 2, opts.continuous, nx, nCon, false, opts.UseModelICs, opts.UseModelInputs, opts.UseParams, opts.UseICs, opts.UseControls);
 
 %% Loop through conditions
 F = zeros(nT,nT);
-Txind = nTk+1; % Stores the position in F where the first variable IC goes for each iCon
+Txind = nTk; % Stores the position in F where the first x0 parameter goes for each iCon
+Tqind = nTk+nTx; % Stores the position in F where the first q parameter goes for each iCon
 intOpts = opts;
 
 % Initialize All array if requested
@@ -138,12 +137,20 @@ for iCon = 1:nCon
     % If opts.UseModelICs is false, the number of variables can change
     if opts.UseModelICs
         inTx = nTx;
-        inT = nT;
     else
         intOpts.UseICs = opts.UseICs(:,iCon);
         inTx = sum(intOpts.UseICs);
-        inT = nTk + inTx;
     end
+    
+    % If opts.UseModelInputs is false, the number of variables can change
+    if opts.UseModelInputs
+        inTq = nTq;
+    else
+        intOpts.UseControls = opts.UseControls(iCon);
+        inTq = sum(intOpts.UseControls{1});
+    end
+    
+    inT = nTk + inTx + inTq;
     
     % Sensitivity integration if not provided
     if isempty(dxdTSol) || isempty(dxdTSol{iCon})
@@ -151,13 +158,12 @@ for iCon = 1:nCon
             intOpts.UseICs = opts.UseICs(:,iCon);
         end
         
-        
         % Modify opts structure
         intOpts.AbsTol = opts.AbsTol{iCon};
         tGet = opts.tGet{iCon};
         
         % Integrate
-        if verbose; fprintf(['Integrating sensitivities for ' con(iCon).Name '...']); end
+        if verbose; fprintf(['Integrating sensitivities for ' m.Name ' in ' con(iCon).Name '...']); end
         if opts.continuous(iCon) && opts.complex(iCon)
             sol = integrateObjSens(m, con(iCon), obj(:,iCon), intOpts);
         elseif opts.complex(iCon)
@@ -176,35 +182,23 @@ for iCon = 1:nCon
     if opts.Normalized
         % Loop through each objective function in the current row
         for iObj = 1:nObj
-            if opts.UseModelICs
-                T = [m.k(opts.UseParams); m.x0(opts.UseICs)]; % model initial conditions
-                Fi = obj(iObj,iCon).Fn(sol, T);
-                F = F + Fi;
-            else
-                T = [m.k(opts.UseParams); con(iCon).x0(opts.UseICs(:,iCon))]; % con initial conditions
-                Fi = obj(iObj,iCon).Fn(sol, T);
-                % Add to correct place in F
-                linInd = [1:nTk, Txind:Txind+inTx-1]; % linear indexes of parameters
-                F(linInd,linInd) = F(linInd,linInd) + Fi;
-            end
+            Fi = obj(iObj,iCon).Fn(sol, T);
+            % Add to correct place in F
+            linInd = [1:nTk, Txind+1:Txind+inTx, Tqind+1:Tqind+inTq]; % linear indexes of parameters
+            F(linInd,linInd) = F(linInd,linInd) + Fi;
             
             % Store FIM if requested
             if nargout >= 2
                 All{iObj,iCon} = Fi;
             end
         end
-    else
+    else%~opts.Normalized
         % Loop through each objective function in the current row
         for iObj = 1:nObj
-            if opts.UseModelICs
-                Fi = obj(iObj,iCon).F(sol);
-                F = F + Fi;
-            else
-                Fi = obj(iObj,iCon).F(sol);
-                % Add to correct place in F
-                linInd = [1:nTk, Txind:Txind+inTx-1]; % linear indexes of parameters
-                F(linInd,linInd) = F(linInd,linInd) + Fi;
-            end
+            Fi = obj(iObj,iCon).F(sol);
+            % Add to correct place in F
+            linInd = [1:nTk, Txind+1:Txind+inTx, Tqind+1:Tqind+inTq]; % linear indexes of parameters
+            F(linInd,linInd) = F(linInd,linInd) + Fi;
             
             % Store FIM if requested
             if nargout >= 2
@@ -216,5 +210,9 @@ for iCon = 1:nCon
     % Update condition x0 position
     if ~opts.UseModelICs
         Txind = Txind + inTx;
+    end
+    % Update condition q position
+    if ~opts.UseModelInputs
+        Tqind = Tqind + inTq;
     end
 end
