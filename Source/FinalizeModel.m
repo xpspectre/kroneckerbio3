@@ -1103,6 +1103,7 @@ m.D3 = reshape(m.dD3dk * sparsek, nr,nu*nx);
 m.D4 = reshape(m.dD4dk * sparsek, nr,nx*nu);
 m.D5 = reshape(m.dD5dk * sparsek, nr,nu*nu);
 m.D6 = reshape(m.dD6dk * sparsek, nr,nu);
+m.d = reshape(m.dddk * sparsek, nr,1);
 
 % Handles
 m.f = fHidden(m.A1, m.A2, m.A3, m.A4, m.A5, m.A6, m.a, m.B1, m.B2, m.b, D2UsedColumns, D2UsedSpecies1, D2UsedSpecies2, D3UsedColumns, D3UsedSpecies1, D3UsedSpecies2, D4UsedColumns, D4UsedSpecies1, D4UsedSpecies2, D5UsedColumns, D5UsedSpecies1, D5UsedSpecies2, m.vxInd, m.vuInd);
