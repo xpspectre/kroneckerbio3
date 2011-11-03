@@ -255,19 +255,19 @@ switch order
                     if isscalar(absTol{i})
                         % AbsTol is starting scalar
                         abstol{i} = zeros(nx+integrateObj(i)+nx*inT+integrateObj(i)*inT,1) + absTol{i};
-                    elseif numel(absTol{i}) == nx*(nT+1)
+                    elseif numel(absTol{i}) == nx+nx*inT
                         % AbsTol is not provided for continuous objective,
                         % better hope it's not needed
                         assert(~integrateObj(i), 'KroneckerBio:AbsTol:VectorWithContinuousObjective', 'Failed to specify AbsTol for continuous objective and gradient')
                         abstol{i} = absTol{i};
-                    elseif numel(absTol{i}) == nx+1+nx*nT+nT
+                    elseif numel(absTol{i}) == nx+1+nx*inT+inT
                         % AbsTol is provided for 1 continuous objective,
                         % use it as many times as needed
                         abstol{i} = [absTol{i}(1:nx);
                             repmat(absTol{i}(nx+1), integrateObj(i),1);
-                            absTol{i}(nx+1+1:nx+1+nx*nT);
-                            repmat(absTol{i}(nx+1+nx*nT+1:nx+1+nx*nT+nT), integrateObj(i),1)];
-                    elseif numel(absTol) == nx+integrateObj(i)+nx*nT+nT*integrateObj(i)
+                            absTol{i}(nx+1+1:nx+1+nx*inT);
+                            repmat(absTol{i}(nx+1+nx*inT+1:nx+1+nx*inT+inT), integrateObj(i),1)];
+                    elseif numel(absTol) == nx+integrateObj(i)+nx*inT+inT*integrateObj(i)
                         % AbsTol is the correct length
                         abstol{i} = absTol{i};
                     else
@@ -302,8 +302,95 @@ switch order
             end
         end
     case 3
-        % Hessian integration
-        error('An unsupported order was passed to fixAbsTol.')
+        % Doublesensitivity or HessianContinuous integration
+        if isstruct(absTol)
+            % It is a struct, extract the appropriate AbsTol
+            temp = absTol;
+            absTol = cell(nCon,1);
+            for i = 1:nCon
+                if ~integrateObj(i)
+                    % Sensitivity
+                    assert(isfield(temp, 'Doublesensitivity'), 'KroneckerBio:AbsTol:MissingStructField', 'AbsTol is a struct but experiment %i requires a "Doublesensitivity" field, which does not exist on the struct', i)
+                    if ~iscell(temp.Doublesensitivity)
+                        % It is numeric, copy it to every experiment
+                        absTol{i} = temp.Doublesensitivity;
+                    elseif numel(temp.Doublesensitivity) == 1
+                        % Only one cell, copy it to every experiment
+                        absTol(i) = temp.Doublesensitivity;
+                    else
+                        % Multiple cells, extract the correct one
+                        assert(numel(temp.Doublesensitivity) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "Doublesensitivity" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
+                        absTol(i) = temp.Doublesensitivity(i);
+                    end
+                else
+                    % HessianContinuous
+                    assert(isfield(temp, 'HessianContinuous'), 'KroneckerBio:AbsTol:MissingStructField', 'AbsTol is a struct but experiment %i requires a "HessianContinuous" field, which does not exist on the struct', i)
+                    if ~iscell(temp.HessianContinuous)
+                        % It is numeric, copy it to every experiment
+                        absTol{i} = temp.HessianContinuous;
+                    elseif numel(temp.HessianContinuous) == 1
+                        % Only one cell, copy it to every experiment
+                        absTol(i) = temp.HessianContinuous;
+                    else
+                        % Multiple cells, extract the correct one
+                        assert(numel(temp.HessianContinuous) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "HessianContinuous" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
+                        absTol(i) = temp.HessianContinuous(i);
+                    end
+                end
+            end
+        end
+        
+        if ~iscell(absTol)
+            % It is numeric, copy it to every experiment
+            absTol = repmat({absTol}, nCon,1);
+        elseif numel(absTol) == 1
+            % Only one cell, copy it to every experiment
+            absTol = repmat(absTol, nCon,1);
+        end
+        
+        % Process each vector in each cell
+        assert(numel(absTol) >= nCon, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol was provided as a cell vector of length %i, but the cell vector is too short for the number of experiments %i', numel(absTol), nCon)
+        for i = 1:nCon
+            % If opts.UseModelICs is false, the number of variables can change
+            if useModelICs
+                inTx = nTx;
+            else
+                inTx = nnz(useICs(:,i));
+            end
+            
+            % If opts.UseModelInputs is false, the number of variables can change
+            if useModelInputs
+                inTq = nTq;
+            else
+                inTq = nnz(useControls{i});
+            end
+            
+            inT = nTk + inTx + inTq;
+            
+            if isscalar(absTol{i})
+                % AbsTol is starting scalar
+                abstol{i} = zeros(nx+integrateObj(i)+nx*inT+integrateObj(i)*inT+nx*inT*inT+integrateObj(i)*inT*inT,1) + absTol{i};
+            elseif numel(absTol{i}) == nx+nx*inT+nx*inT*inT
+                % AbsTol is not provided for continuous objective,
+                % better hope it's not needed
+                assert(~integrateObj(i), 'KroneckerBio:AbsTol:VectorWithContinuousObjective', 'Failed to specify AbsTol for continuous objective and gradient')
+                abstol{i} = absTol{i};
+            elseif numel(absTol{i}) == nx+1+nx*inT+inT+nx*inT*inT+inT*inT
+                % AbsTol is provided for 1 continuous objective,
+                % use it as many times as needed
+                abstol{i} = [absTol{i}(1:nx);
+                    repmat(absTol{i}(nx+1), integrateObj(i),1);
+                    absTol{i}(nx+1+1:nx+1+nx*inT);
+                    repmat(absTol{i}(nx+1+nx*inT+1:nx+1+nx*inT+inT), integrateObj(i),1);
+                    absTol{i}(nx+1+nx*inT+inT+1:nx+1+nx*inT+inT+nx*inT*inT);
+                    repmat(absTol(absTol{i}(nx+1+nx*inT+inT+nx*inT*inT+1:nx+1+nx*inT+inT+nx*inT*inT+inT*inT)), integrateObj(i),1)];
+            elseif numel(absTol) == nx+integrateObj(i)+nx*nT+nT*integrateObj(i)+nx*inT*inT+inT*inT*integrateObj(i)
+                % AbsTol is the correct length
+                abstol{i} = absTol{i};
+            else
+                error('KroneckerBio:AbsTol:InvalidAbsTolLength', 'That is not a valid length for AbsTol.')
+            end
+        end
     otherwise
         error('An unsupported order was passed to fixAbsTol.')
 end

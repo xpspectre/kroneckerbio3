@@ -89,9 +89,9 @@ function [varargout] = SimulateSensitivitySelect(m, con, tGet, opts)
 %% Work-up
 % Clean up inputs
 if nargin < 4
+    opts = [];
     if nargin < 3
         tGet = [];
-        opts = [];
         if nargin < 2
             con = [];
             if nargin < 1
@@ -162,16 +162,15 @@ for iCon = 1:nCon
     % If opts.UseModelICs is false, the number of variables can change
     if opts.UseModelICs
         inTx = nTx;
-        inT = nT;
     else
         inTx = sum(opts.UseICs(:,iCon));
-        inT = nTk + inTx;
     end
+    inT = nTk + inTx;
 	
     % Modify opts structure
     intOpts.AbsTol = opts.AbsTol{iCon};
     
-    % Integrate dx/dp over time
+    % Integrate [x; dx/dT] over time
     if verbose; fprintf(['Integrating sensitivities for ' con(iCon).Name '...']); end
     sol = integrateSensSelect(m, con(iCon), tGet, intOpts);
     if verbose; fprintf('done.\n'); end

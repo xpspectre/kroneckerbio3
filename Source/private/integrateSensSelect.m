@@ -110,14 +110,14 @@ sol.c  = m.c;
         function val = dfdTSub(t, x, u)
             val = m.dfdk(t,x,u);
             dfdq = dfdu(t,x,u) * dudq(t);
-            val = [val(:,opts.UseParams) zeros(nx, nTx) dfdq(:,opts.UseControls{1})];
+            val = [val(:,opts.UseParams) sparse(nx, nTx) dfdq(:,opts.UseControls{1})];
         end
         
         % Modifies d2fdkdx to relate only to the parameters of interest
         function val = d2fdTdxSub(t, x, u)
             val = m.d2fdkdx(t,x,u);
             d2fdqdx = d2fdudx(t,x,u) * dudq(t);
-            val = [val(:,opts.UseParams) zeros(nx*nx, nTx) d2fdqdx(:,opts.UseControls{1})];
+            val = [val(:,opts.UseParams) sparse(nx*nx, nTx) d2fdqdx(:,opts.UseControls{1})];
         end
     end
 

@@ -27,7 +27,7 @@ function m = FinalizeModel(m)
 % This work is released under the MIT license.
 
 %% Work-up
-assert(nargin >= 1, 'KroneckerBio:FinalizeModel:TooFewInputs', 'FinalizeModel requires at least 1 input arguments')
+assert(nargin >= 1, 'KroneckerBio:FinalizeModel:TooFewInputs', 'FinalizeModel requires at least 1 input argument')
 assert(isscalar(m), 'KroneckerBio:FinalizeModel:MoreThanOneModel', 'The model structure must be scalar')
 
 %% Place compartments
@@ -1362,7 +1362,7 @@ handle = @d2fdudx;
         end
         
         Ixkron1vu = sparse(D4UsedColumns, D4UsedColumns, vuinv(D4UsedSpecies2), nu*nx,nu*nx); % ux_ux
-        if any(vec(dvxdx))
+        if any(vec(dvudu))
             Ixkronudvudu = kron(Ix, bsxfun(@times, u .* vu .^ -2, dvudu));
         else
             % Matlab's kron is expensive, don't do it if it is just zeros
@@ -1405,7 +1405,7 @@ handle = @d2fdxdu;
         end
         
         Ixkron1vu = sparse(D4UsedColumns, D4UsedColumns, vuinv(D4UsedSpecies2), nu*nx,nu*nx); % ux_ux
-        if any(vec(dvxdx))
+        if any(vec(dvudu))
             Ixkronudvudu = kron(Ix, bsxfun(@times, u .* vu .^ -2, dvudu));
         else
             % Matlab's kron is expensive, don't do it if it is just zeros

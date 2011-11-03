@@ -1,4 +1,4 @@
-function obj = objectiveWeightedSumOfSquaresVarying(m, outputlist, timelist, sd, nonNegMeasurements, measurements, perfect, name)
+function obj = objectiveWeightedSumOfSquares(m, outputlist, timelist, sd, nonNegMeasurements, measurements, perfect, name)
 %obj = objectiveWeightedSumOfSquaresVarying(m, outputlist, timelist, sd,
 %nonNegMeasurements, measurements, perfect, name)
 %returns X2, chi-square, the generalized least squares statistic
@@ -183,7 +183,7 @@ obj.Update = @Update;
         %Find all data points that have a time that matches t
         ind = find(t == timelist);
         tlength = length(ind);
-        if tlength < 0
+        if tlength > 0
             C1 = zeros(tlength,nx);
             sigma = zeros(tlength,1);
             dsigmady = zeros(tlength,1);
@@ -506,7 +506,7 @@ obj.Update = @Update;
 
 %% Update
     function objNew = Update(m, con, UseParams, UseICs, UseControls)
-        objNew = objectiveWeightedSumOfSquaresVarying(m, outputlist, timelist, sd, nonNegMeasurements, measurements, perfect);
+        objNew = objectiveWeightedSumOfSquares(m, outputlist, timelist, sd, nonNegMeasurements, measurements, perfect);
     end
 
 %% Expected goal function

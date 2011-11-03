@@ -64,13 +64,13 @@ function [varargout] = SimulateSensitivity(m, con, opts)
 %           The integrator solution to the system
 %       
 %   The following are permitted if nCon = 1
-%   [t, dydT] = SimulateSensitivity(m, con, opts)
+%   [t, dydT] = SimulateSensitivity(m, con, tGet, opts)
 %     	sim.t, sim.dydT
 %
-%   [t, dydT, dxdT] = SimulateSensitivity(m, con, opts)
+%   [t, dydT, dxdT] = SimulateSensitivity(m, con, tGet, opts)
 %     	sim.t, sim.dydT, sim.dxdT
 %
-%   [t, dydT, dxdT, sol] = SimulateSensitivity(m, con, opts)
+%   [t, dydT, dxdT, sol] = SimulateSensitivity(m, con, tGet, opts)
 %     	sim.t, sim.dydT, sim.dxdT, sim.sol
 %       
 %	Special
