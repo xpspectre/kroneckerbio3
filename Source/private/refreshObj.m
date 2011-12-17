@@ -44,6 +44,9 @@ if ~iscell(UseICs)
     UseICs = {UseICs};
 end
 if ~iscell(UseControls)
+    UseControls = {{UseControls}};
+end
+if nTop > 0 && nCon > 0 && ~iscell(UseControls{1})
     UseControls = {UseControls};
 end
 
@@ -54,19 +57,19 @@ for iTop = 1:nTop
             if size(UseICs{iTop},2) == 1 && size(UseControls,1) == 1 && nCon > 1
                 % UseModelICs == true && UseModelInputs == true
                 useICsi = UseICs{iTop};
-                useControlsi = UseControls{1,iTop};
+                useControlsi = UseControls{iTop}{iCon};
             elseif size(UseICs{iTop},2) == 1 && nCon > 1
                 % UseModelsICs == true && UseModelInputs == false
                 useICsi = UseICs{iTop};
-                useControlsi = UseControls{iCon,iTop};
+                useControlsi = UseControls{iTop}{iCon};
             elseif size(UseControls,1) == 1 && nCon > 1
                 % UseModelsICs == false && UseModelInputs == true
                 useICsi = UseICs{iTop}(:,iCon);
-                useControlsi = UseControls{iCon,iTop};
+                useControlsi = UseControls{iTop}{iCon};
             else% (size(UseICs{iTop},2) ~= 1 && size(UseControls,1) ~= 1) || nCon == 1
                 % UseModelsICs == false && UseModelInputs == false
                 useICsi = UseICs{iTop}(:,iCon);
-                useControlsi = UseControls{iCon,iTop};
+                useControlsi = UseControls{iTop}{iCon};
             end
             
             % Refresh obj

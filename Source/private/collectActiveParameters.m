@@ -19,7 +19,8 @@ end
 if useModelInputs
     q = m.q;
 else
-    q = zeros(sum(con.nq),1);
+    nq = sum(cat(1,con.nq));
+    q = zeros(nq,1);
     index = 0;
     for iCon = 1:nCon
         q(index+1:index+con(iCon).nq) = con(iCon).q;

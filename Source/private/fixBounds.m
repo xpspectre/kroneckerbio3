@@ -14,7 +14,9 @@ if useModelICs && useModelInputs
     % Bounds can be nk+nx+nq, nT, nk, nk+nx, or 1
     l = numel(bounds);
     
-    if l == nk+nx+nq
+    if l == 1
+        bounds = zeros(nT,1) + bounds;
+    elseif l == nk+nx+nq
         bounds = bounds([useParams; useICs; cat(1,useControls{:})]);
     elseif l == nT
         %bounds = bounds;
@@ -22,8 +24,6 @@ if useModelICs && useModelInputs
         bounds = bounds(useParams);
     elseif l == nk+nx && nTq == 0
         bounds = bounds([useParams; useICs]);
-    elseif l == 1
-        bounds = zeros(nT,1) + bounds;
     else
         error('KroneckerBio:BoundSize', ...
             'LowerBound and UpperBound must be vectors the length of m.nk+m.nx+m.nq, number of variable parameters, m.nk if there are no variable ICs or controls, m.nk+m.nx if there are no variable controls, or scalar')
@@ -32,16 +32,16 @@ elseif ~useModelICs && useModelInputs
     % Bounds can be nk+nx*nCon+nq, nT, nk, nk+nx*nCon, or 1
     l = numel(bounds);
     
-    if l == nk+nx*nCon+nq
-        bounds = bounds([useParams; useICs; cat(1,useControls{:})]);
+    if l == 1
+        bounds = zeros(nT,1) + bounds;
+    elseif l == nk+nx*nCon+nq
+        bounds = bounds([useParams; vec(useICs); cat(1,useControls{:})]);
     elseif l == nT
         %bounds = bounds;
     elseif l == nk && nTx == 0 && nTq == 0
         bounds = bounds(useParams);
     elseif l == nk+nx*nCon && nTq == 0
         bounds = bounds([useParams; vec(useICs)]);
-    elseif l == 1
-        bounds = zeros(nT,1) + bounds;
     else
         error('KroneckerBio:BoundSize', ...
             'LowerBound and UpperBound must be vectors the length of m.nk+m.nx*numel(con)+m.nq, number of variable parameters, m.nk if there are no variable ICs or controls, m.nk+m.nx*numel(con) if there are no variable controls, or scalar')
@@ -50,7 +50,9 @@ elseif useModelICs && ~useModelInputs
     % Bounds can be nk+nx+nq, nT, nk, nk+nx, or 1
     l = numel(bounds);
     
-    if l == nk+nx+nq
+    if l == 1
+        bounds = zeros(nT,1) + bounds;
+    elseif l == nk+nx+nq
         bounds = bounds([useParams; useICs; cat(1,useControls{:})]);
     elseif l == nT
         %bounds = bounds;
@@ -58,8 +60,6 @@ elseif useModelICs && ~useModelInputs
         bounds = bounds(useParams);
     elseif l == nk+nx && nTq == 0
         bounds = bounds([useParams; useICs]);
-    elseif l == 1
-        bounds = zeros(nT,1) + bounds;
     else
         error('KroneckerBio:BoundSize', ...
             'LowerBound and UpperBound must be vectors the length of m.nk+m.nx+m.nq, number of variable parameters, m.nk if there are no variable ICs or controls, m.nk+m.nx if there are no variable controls, or scalar')
@@ -68,16 +68,16 @@ else%~useModelICs && ~useModelInputs
     % Bounds can be nk+nx*nCon+nq, nT, nk, nk+nx*nCon, or 1
     l = numel(bounds);
     
-    if l == nk+nx*nCon+nq
-        bounds = bounds([useParams; useICs; cat(1,useControls{:})]);
+    if l == 1
+        bounds = zeros(nT,1) + bounds;
+    elseif l == nk+nx*nCon+nq
+        bounds = bounds([useParams; vec(useICs); cat(1,useControls{:})]);
     elseif l == nT
         %bounds = bounds;
     elseif l == nk && nTx == 0 && nTq == 0
         bounds = bounds(useParams);
     elseif l == nk+nx*nCon && nTq == 0
         bounds = bounds([useParams; vec(useICs)]);
-    elseif l == 1
-        bounds = zeros(nT,1) + bounds;
     else
         error('KroneckerBio:BoundSize', ...
             'LowerBound and UpperBound must be vectors the length of m.nk+m.nx*numel(con)+m.nq, number of variable parameters, m.nk if there are no variable ICs or controls, m.nk+m.nx*numel(con) if there are no variable controls, or scalar')

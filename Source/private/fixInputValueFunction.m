@@ -1,7 +1,14 @@
 function [func handled] = fixInputValueFunction(value, units, v0)
-
+% TODO: why did I put in v0?
 if nargin < 2
     units = [];
+    if nargin < 1
+        value = [];
+    end
+end
+
+if isempty(value)
+    value = 0;
 end
 
 % TODO: units

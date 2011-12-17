@@ -393,8 +393,8 @@ m.d2fdudx = @(t,x,u)(zeros(0,0));
 m.d2fdxdu = @(t,x,u)(zeros(0,0));
 m.d2fdkdx = @(t,x,u)(zeros(0,0));
 m.d2fdxdk = @(t,x,u)(zeros(0,0));
-%m.d2fdkdu = @(t,x,u)(zeros(0,0));
-%m.d2fdudk = @(t,x,u)(zeros(0,0));
+m.d2fdkdu = @(t,x,u)(zeros(0,0));
+m.d2fdudk = @(t,x,u)(zeros(0,0));
 
 m.S = zeros(0,0);
 

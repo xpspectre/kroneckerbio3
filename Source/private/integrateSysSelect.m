@@ -1,5 +1,4 @@
 function sol = integrateSysSelect(m, con, tGet, opts)
-
 % Constants
 nx = m.nx;
 
@@ -40,13 +39,13 @@ sol.c  = m.c;
         
         der = @derivative;
         jac = @jacobian;
-        
+
         % Derivative of x with respect to time
         function val = derivative(t, x, u)
             u   = u(t);
             val = f(t, x, u);
         end
-        
+
         % Jacobian of x derivative
         function val = jacobian(t, x, u)
             u   = u(t);

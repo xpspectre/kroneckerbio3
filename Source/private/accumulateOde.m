@@ -160,6 +160,7 @@ for k = 1:(N-1)
             % Multiple outputs are required
             if isempty(events)
                 [simx simy] = ode15sf(der, tOde, ic, simOpts, u);
+                %[simx simy] = odeEuler(der, tOde, ic, simOpts, u);
                 simSol.x = simx';
                 simSol.y = simy';
             else
@@ -254,17 +255,6 @@ for k = 1:(N-1)
 end
 
 %% Work-down
-% Add on any changes to initial conditions at the final timepoint
-if ~isempty(delta)
-    if fullSol
-        cumSol.y(:, end) = cumSol.y(:, end) + direction*delta(cumSol.x(end));
-    else
-        % Find the final indexes and add to the solution at those points
-        finalInds = find(simSol.x(end) == cumSol.x);
-        cumSol.y(:,finalInds) = cumSol.y(:,finalInds) + repmat(direction*delta(simSol.x(end)), 1, length(finalInds));
-    end
-end
-
 % If no integration was performed return an appropriate structure
 if N == 1
     if fullSol
@@ -277,6 +267,17 @@ if N == 1
     else
         simSol.x = discontinuities;
         cumSol.y(:,discontinuities == tGet) = repmat(ic, 1,nnz(discontinuities == tGet));
+    end
+end
+
+% Add on any changes to initial conditions at the final timepoint
+if ~isempty(delta)
+    if fullSol
+        cumSol.y(:, end) = cumSol.y(:, end) + direction*delta(cumSol.x(end));
+    else
+        % Find the final indexes and add to the solution at those points
+        finalInds = find(simSol.x(end) == cumSol.x);
+        cumSol.y(:,finalInds) = cumSol.y(:,finalInds) + repmat(direction*delta(simSol.x(end)), 1, length(finalInds));
     end
 end
 

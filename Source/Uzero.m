@@ -60,19 +60,19 @@ end
 
 % Constants
 nu = m.nu;
+x0 = m.x0;
 
 % Gut m
 temp = m;
 clear m
+m.nx = temp.nx;
 m.nu = temp.nu;
-m.nk = temp.nk;
-m.x0 = temp.x0;
 clear temp
 
 con.Type = 'Experiment';
 con.Name = 'UnnamedExperiment';
 con.tF = 0;
-con.x0 = m.x0;
+con.x0 = x0;
 con.u  = @(t)zeros(nu,1);
 con.q  = zeros(0,1);
 con.dudq = @(t)zeros(nu,0);
@@ -83,6 +83,7 @@ con.Discontinuities = zeros(0,1);
 con.Update = @Update;
 
     function con = Update(x0, q)
-        con = ExperimentBasic(m, 0, x0, 0);
+        assert(numel(q) == 0, 'KroneckerBio:Experiment:Update:InvalidInputControl', 'An input control parameter vector was supplied with %i elements, but the input of this experiment is controlled by 0 input parameters. They must be the same.', numel(q))
+        con = Experiment(m, 0, x0, false, false, zeros(nu,1), [], q);
     end
 end

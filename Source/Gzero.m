@@ -119,7 +119,10 @@ function obj = Gzero(m)
 
 % Special case: return empty structure array if inputs are numeric
 if isnumeric(m)
-    obj = emptystruct(m, 'Type', 'Name', 'Continuous', 'Complex', 'Linked', 'DiscreteTimes', 'g', 'dgdx', 'dgdk', 'd2gdx2', 'd2gdk2', 'd2gdxdk', 'd2gdkdx', 'G', 'dGdx', 'dGdk', 'd2Gdx2', 'd2Gdk2', 'd2Gdkdx', 'd2Gdxdk', 'F', 'Fn', 'p', 'pvalue', 'n', 'AddData', 'AddExpectedData', 'QuantifyPrediction', 'Update');
+    obj = emptystruct(m, 'Type', 'Name', 'Continuous', 'Complex', 'Linked', 'DiscreteTimes', 'g', 'dgdx', 'dgdk', 'd2gdx2', 'd2gdk2', 'd2gdxdk', 'd2gdkdx', 'G', 'dGdx', 'dGdk', 'd2Gdx2', 'd2Gdk2', 'd2Gdkdx', 'd2Gdxdk', 'F', 'Fn', 'dFndT', 'p', 'pvalue', 'n', 'AddData', 'AddExpectedData', 'QuantifyPrediction', 'Update');
+    if ~isempty(obj)
+        [obj.Update] = deal(@Update);
+    end
     return
 end
 
@@ -165,6 +168,7 @@ obj.d2Gdxdk = @d2Gdxdk;
 % Information theory
 obj.F  = @F;
 obj.Fn = @Fn;
+obj.dFndT = @dFndT;
 obj.p  = @p;
 obj.pvalue = @pvalue;
 
@@ -230,6 +234,10 @@ obj.Update = @Update;
     function val = Fn(dxdTSol, T)
         nT = (size(dxdTSol.y, 1) - nx) / nx;
         val = zeros(nT,nT);
+    end
+    function val = dFndT(d2xdT2Sol, T)
+        nT = numel(T);
+        val = zeros(nT*nT,nT);
     end
     function val = p(sol)
         val = 1;

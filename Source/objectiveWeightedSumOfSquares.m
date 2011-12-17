@@ -211,24 +211,26 @@ obj.Update = @Update;
         nT = (size(sol.y, 1) - nx) / nx;
         
         % Evaluate the ODE solver structure
+        dxdTStart = nx+1;
+        dxdTEnd   = nx+nx*nT;
         if isempty(sol.idata)
             % The solution is already discretized
             if numel(sol.x) == numel(discreteTimes)
                 x = sol.y(1:nx,:); % x_t
                 u = sol.u;
-                dxdT = sol.y((nx+1):(nx*(nT+1)),:); % xT_t
+                dxdT = sol.y(dxdTStart:dxdTEnd,:); % xT_t
             else
                 ind = lookup(discreteTimes, sol.x);
                 x = sol.y(1:nx,ind);
                 u = sol.u(:,ind);
-                dxdT = sol.y((nx+1):(nx*(nT+1)),ind); % xT_t
+                dxdT = sol.y(dxdTStart:dxdTEnd,ind); % xT_t
             end
         else
             % The complete solution is provided
-            joint = deval(sol, discreteTimes, 1:(nx*(nT+1))); % x+xT_t
+            joint = deval(sol, discreteTimes, 1:dxdTEnd); % x+xT_t
             x = joint(1:nx,:); % x_t
             u = sol.u(discreteTimes); % u_t
-            dxdT = joint((nx+1):(nx*(nT+1)),:); % xT_t
+            dxdT = joint(dxdTStart:dxdTEnd,:); % xT_t
         end
         
         % Get dydT for every point
@@ -262,24 +264,26 @@ obj.Update = @Update;
         nT = (size(sol.y, 1) - nx) / nx;
         
         % Evaluate the ODE solver structure
+        dxdTStart = nx+1;
+        dxdTEnd   = nx+nx*nT;
         if isempty(sol.idata)
             % The solution is already discretized
             if numel(sol.x) == numel(discreteTimes)
                 x = sol.y(1:nx,:); % x_t
                 u = sol.u;
-                dxdT = sol.y((nx+1):(nx*(nT+1)),:); % xT_t
+                dxdT = sol.y(dxdTStart:dxdTEnd,:); % xT_t
             else
                 ind = lookup(discreteTimes, sol.x);
                 x = sol.y(1:nx,ind);
                 u = sol.u(:,ind);
-                dxdT = sol.y((nx+1):(nx*(nT+1)),ind); % xT_t
+                dxdT = sol.y(dxdTStart:dxdTEnd,ind); % xT_t
             end
         else
             % The complete solution is provided
-            joint = deval(sol, discreteTimes, 1:(nx*(nT+1))); % x+xT_t
+            joint = deval(sol, discreteTimes, 1:dxdTEnd); % x+xT_t
             x = joint(1:nx,:); % x_t
             u = sol.u(discreteTimes); % u_t
-            dxdT = joint((nx+1):(nx*(nT+1)),:); % xT_t
+            dxdT = joint(dxdTStart:dxdTEnd,:); % xT_t
         end
         
         % Get dydT for every point
@@ -347,13 +351,14 @@ obj.Update = @Update;
 
 %% AddData
     function objNew = AddData(sol)
-        nx = size(sol.C1,1);
+        nx = size(sol.C1,2);
         
         % Evaluate the ODE solver structure
         if isempty(sol.idata)
             % The solution is already discretized
-            x = sol.y(1:nx, lookup(discreteTimes, sol.x));
-            u = sol.u(:,lookup(discreteTimes, sol.x));
+            ind = lookup(discreteTimes, sol.x);
+            x = sol.y(1:nx, ind);
+            u = sol.u(:, ind);
         else
             % The complete solution is provided
             x = deval(sol, discreteTimes, 1:nx); % x_t
@@ -365,14 +370,14 @@ obj.Update = @Update;
         for i = 1:n
             t = discreteTimes == timelist(i);
             newMeasurements(i) = sol.C1(outputlist(i),:) * x(:,t) + sol.C2(outputlist(i),:) * u(:,t) + sol.c(outputlist(i),:);
-            newMeasurements(i) = newMeasurements(i) + randn*sd(timelist(i),outputlist(i),newMeasurements(i));
+            newMeasurements(i) = newMeasurements(i) + randn * sd(timelist(i), outputlist(i), newMeasurements(i));
         end
         
         if nonNegMeasurements
             newMeasurements(newMeasurements < 0) = 0;
         end
         
-        objNew = objectiveWeightedSumOfSquaresVarying(m, outputlist, timelist, sd, nonNegMeasurements, newMeasurements, false);
+        objNew = objectiveWeightedSumOfSquares(m, outputlist, timelist, sd, nonNegMeasurements, newMeasurements, false, name);
     end
 
 %% AddExpectedData

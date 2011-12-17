@@ -1,5 +1,5 @@
-function obj = objectiveWeightedSumOfSquaresFixedToData(m, outputs, times, sd, nonNegMeasurements, measurements, perfect, name)
-%obj = objectiveWeightedSumOfSquaresFixedToData(m, outputs, times, sd,
+function obj = objectiveWeightedSumOfSquaresFixedToData(m, outputlist, timelist, sd, nonNegMeasurements, measurements, perfect, name)
+%obj = objectiveWeightedSumOfSquaresFixedToData(m, outputlist, timelist, sd,
 %nonNegMeasurements, measurements, perfect)
 %returns X2, chi-square, the generalized least squares statistic
 
@@ -18,9 +18,9 @@ if nargin < 8
                 if nargin < 4
                     sd = [];
                     if nargin < 3
-                        times = [];
+                        timelist = [];
                         if nargin < 2
-                            outputs = [];
+                            outputlist = [];
                             if nargin < 1
                                 m = [];
                             end
@@ -34,15 +34,15 @@ end
 
 % Special case: return empty structure array if inputs are numeric
 if isnumeric(m)
-    obj = emptystruct(m, 'Type', 'Name', 'DiscreteTimes', 'Continuous', 'Complex', 'G', 'dGdx', 'd2Gdx2', 'F', 'Fn', 'p', 'pvalue', 'n', 'AddData', 'AddExpectedData', 'QuantifyPrediction', 'Update');
+    obj = emptystruct(m, 'Type', 'Name', 'DiscreteTimes', 'Continuous', 'Complex', 'G', 'dGdx', 'd2Gdx2', 'F', 'Fn', 'dFndT', 'p', 'pvalue', 'n', 'AddData', 'AddExpectedData', 'QuantifyPrediction', 'Update');
     return
 end
 
 % Check inputs
-assert(isvector(outputs), 'KroneckerBio:constructObjectiveChiSquare:outputs', 'Input "outputs" must be a vector.')
-n = length(outputs);
-assert(isvector(times) && length(times) == n, 'KroneckerBio:constructObjectiveChiSquare:times', 'Input "times" must be a vector length of "outputs".')
-assert(numel(measurements) == n || isempty(measurements), 'KroneckerBio:constructObjectiveChiSquare:measurements', 'Input "measurements" must be a vector length of "outputs" or empty.')
+assert(isvector(outputlist), 'KroneckerBio:constructObjectiveChiSquare:outputlist', 'Input "outputlist" must be a vector.')
+n = length(outputlist);
+assert(isvector(timelist) && length(timelist) == n, 'KroneckerBio:constructObjectiveChiSquare:timelist', 'Input "timelist" must be a vector length of "outputlist".')
+assert(numel(measurements) == n || isempty(measurements), 'KroneckerBio:constructObjectiveChiSquare:measurements', 'Input "measurements" must be a vector length of "outputlist" or empty.')
 
 % Gut m
 temp = m;
@@ -57,14 +57,15 @@ nx = m.nx;
 nk = m.nk;
 
 % Find unique times
-discreteTimes = vec(unique(times)).';
+discreteTimes = vec(unique(timelist)).';
 
 % Compute covariance matrix
 if ~isempty(measurements)
-    V = sparse(n,n);
+    V = zeros(n,1);
     for j = 1:n
-        V(j,j) = sd(times(j), outputs(j), measurements(j))^2;
+        V(j) = sd(timelist(j), outputlist(j), measurements(j))^2;
     end
+    V = sparse(1:n, 1:n, V, n,n);
 end
 
 % Default is nonNegMeasurements
@@ -94,6 +95,7 @@ obj.d2Gdx2 = @d2Gdx2;
 
 obj.F = @F;
 obj.Fn = @Fn;
+obj.dFndT = @dFndT;
 obj.p = @p;
 obj.pvalue = @pvalue;
 
@@ -130,8 +132,8 @@ obj.Update = @update;
             % Get e for every point evaluated
             e = zeros(n,1);
             for i = 1:n
-                t = discreteTimes == times(i);
-                e(i,1) = sol.C1(outputs(i),:) * x(:,t) + sol.C2(outputs(i),:) * u(:,t) + sol.c(outputs(i),:) - measurements(i);
+                t = discreteTimes == timelist(i);
+                e(i,1) = sol.C1(outputlist(i),:) * x(:,t) + sol.C2(outputlist(i),:) * u(:,t) + sol.c(outputlist(i),:) - measurements(i);
             end
             
             % Sort by absolute value
@@ -155,7 +157,7 @@ obj.Update = @update;
 
     function val = dGdx(t,sol)
         %Find all data points that have a time that matches t
-        ind = find(t == times);
+        ind = find(t == timelist);
         tlength = length(ind);
         if tlength > 0
             % Evaluate the ODE solver structure
@@ -175,8 +177,8 @@ obj.Update = @update;
             e = zeros(tlength,1);
             C1 = zeros(tlength,nx);
             for i = 1:tlength
-                C1(i,:) = sol.C1(outputs(ind(i)),:);
-                e(i,1) = C1(i,:)*x + sol.C2(outputs(ind(i)),:) * u + sol.c(outputs(ind(i)),:) - measurements(ind(i));
+                C1(i,:) = sol.C1(outputlist(ind(i)),:);
+                e(i,1) = C1(i,:)*x + sol.C2(outputlist(ind(i)),:) * u + sol.c(outputlist(ind(i)),:) - measurements(ind(i));
             end
             
             % Sort by absolute value
@@ -196,13 +198,13 @@ obj.Update = @update;
 
     function val = d2Gdx2(t,sol)
         %Find all data points that have a time that matches t
-        ind = find(t == times);
+        ind = find(t == timelist);
         tlength = length(ind);
         if tlength > 0
             %compute d2X2/dx2 = 2*C1'*W*C1
             C1 = zeros(tlength,nx);
             for i = 1:tlength
-                C1(i,:) = sol.C1(outputs(ind(i)),:);
+                C1(i,:) = sol.C1(outputlist(ind(i)),:);
             end
             val = 2*C1*(V(ind,ind)\C1);
         else
@@ -218,49 +220,35 @@ obj.Update = @update;
         nT = (size(sol.y, 1) - nx) / nx;
         
         % Evaluate the ODE solver structure
+        dxdTStart = nx+1;
+        dxdTEnd   = nx+nx*nT;
         if isempty(sol.idata)
             % The solution is already discretized
             if numel(sol.x) == numel(discreteTimes)
-                x = sol.y(1:nx,:); % x_t
-                u = sol.u;
-                dxdT = sol.y((nx+1):(nx*(nT+1)),:); % xT_t
+                dxdT = sol.y(dxdTStart:dxdTEnd,:); % xT_t
             else
                 ind = lookup(discreteTimes, sol.x);
-                x = sol.y(1:nx,ind);
-                u = sol.u(:,ind);
-                dxdT = sol.y((nx+1):(nx*(nT+1)),ind); % xT_t
+                dxdT = sol.y(dxdTStart:dxdTEnd,ind); % xT_t
             end
         else
             % The complete solution is provided
-            joint = deval(sol, discreteTimes, 1:(nx*(nT+1))); % x+xT_t
-            x = joint(1:nx,:); % x_t
-            u = sol.u(discreteTimes); % u_t
-            dxdT = joint((nx+1):(nx*(nT+1)),:); % xT_t
+            joint = deval(sol, discreteTimes, 1:dxdTEnd); % x+xT_t
+            dxdT = joint(dxdTStart:dxdTEnd,:); % xT_t
         end
         
         % Get dydT for every point
         dydT = zeros(n, nT);
-        EV = zeros(n,1);
         for i = 1:n
-            ind = find(discreteTimes == times(i), 1);
-            ix = x(:,ind);
+            ind = find(discreteTimes == timelist(i), 1);
             idxdT = reshape(dxdT(:,ind), nx,nT); %x_T
-            iC = sol.C1(outputs(i),:);
+            iC = sol.C1(outputlist(i),:);
             
-            % Compute this y
-            y = iC*ix + sol.C2(outputs(i),:)*u(:,ind) + sol.c(outputs(i));
-            
-            % Compute dy/dT
+            % dy(i)/dT
             dydT(i,:) = iC * idxdT;
-            
-            % Compute expected V matrix
-            EV(i) = sd(times(i), outputs(i), y)^2;
         end
         
-        EV = spdiags(EV,0,n,n);
-        
         % Compute expected normalized hessian
-        val = dydT.' * (EV \ dydT);
+        val = dydT.' * (V \ dydT);
         val = symmat(val);
     end
 
@@ -269,54 +257,93 @@ obj.Update = @update;
         nT = (size(sol.y, 1) - nx) / nx;
         
         % Evaluate the ODE solver structure
+        dxdTStart = nx+1;
+        dxdTEnd   = nx+nx*nT;
         if isempty(sol.idata)
             % The solution is already discretized
             if numel(sol.x) == numel(discreteTimes)
-                x = sol.y(1:nx,:); % x_t
-                u = sol.u;
-                dxdT = sol.y((nx+1):(nx*(nT+1)),:); % xT_t
+                dxdT = sol.y(dxdTStart:dxdTEnd,:); % xT_t
             else
                 ind = lookup(discreteTimes, sol.x);
-                x = sol.y(1:nx,ind);
-                u = sol.u(:,ind);
-                dxdT = sol.y((nx+1):(nx*(nT+1)),ind); % xT_t
+                dxdT = sol.y(dxdTStart:dxdTEnd,ind); % xT_t
             end
         else
             % The complete solution is provided
-            joint = deval(sol, discreteTimes, 1:(nx*(nT+1))); % x+xT_t
-            x = joint(1:nx,:); % x_t
-            u = sol.u(discreteTimes); % u_t
-            dxdT = joint((nx+1):(nx*(nT+1)),:); % xT_t
+            joint = deval(sol, discreteTimes, 1:dxdTEnd); % x+xT_t
+            dxdT = joint(dxdTStart:dxdTEnd,:); % xT_t
         end
         
         % Get dydT for every point
         dydT = zeros(n, nT);
-        EV = zeros(n,1);
         for i = 1:n
-            ind = find(discreteTimes == times(i), 1);
-            ix = x(:,ind);
+            ind = find(discreteTimes == timelist(i), 1);
             idxdT = reshape(dxdT(:,ind), nx,nT); %x_T
-            iC = sol.C1(outputs(i),:);
+            iC = sol.C1(outputlist(i),:);
             
-            % Compute this y
-            y = iC*ix + sol.C2(outputs(i),:)*u(:,ind) + sol.c(outputs(i));
-            
-            % Compute dy/dT
+            % dy(i)/dT
             dydT(i,:) = iC * idxdT;
-            
-            % Compute expected V matrix
-            EV(i) = sd(times(i), outputs(i), y)^2;
         end
         
-        EV = spdiags(EV,0,n,n);
-        
         % Construct normalization matrix
-        val = spdiags(T,0,nT,nT); % p along the diagonal
+        val = spdiags(T,0,nT,nT); % T along the diagonal
 
         % Compute expected normalized hessian
         val = dydT*val;
-        val = val.' * (EV \ val);
+        val = val.' * (V \ val);
         val = symmat(val);
+    end
+
+    function val = dFndT(sol, T)
+        nT = numel(T);
+        
+        % Evaluate the ODE solver structure
+        dxdTStart   = nx+1;
+        dxdTEnd     = nx+nx*nT;
+        d2xdT2Start = nx+nx*nT+1;
+        d2xdT2End   = nx+nx*nT+nx*nT*nT;
+        if isempty(sol.idata)
+            % The solution is already discretized
+            if numel(sol.x) == numel(discreteTimes)
+                dxdT = sol.y(dxdTStart:dxdTEnd,:); % xT_t
+                d2xdT2 = sol.y(d2xdT2Start:d2xdT2End,:); % xTT_t
+            else
+                ind = lookup(discreteTimes, sol.x);
+                dxdT = sol.y(dxdTStart:dxdTEnd,ind); % xT_t
+                d2xdT2 = sol.y(d2xdT2Start:d2xdT2End,ind); % xTT_t
+            end
+        else
+            % The complete solution is provided
+            joint = deval(sol, discreteTimes, 1:d2xdT2End); % x+xT_t
+            dxdT = joint(dxdTStart:dxdTEnd,:); % xT_t
+            d2xdT2 = joint(d2xdT2Start:d2xdT2End,:); % xTT_t
+        end
+        
+        % Get dydT for every point
+        dydT = zeros(n, nT);
+        d2ydT2 = zeros(n, nT*nT);
+        for i = 1:n
+            ind = find(discreteTimes == timelist(i), 1);
+            idxdT = reshape(dxdT(:,ind), nx,nT); %x_T
+            id2xdT2 = reshape(d2xdT2(:,ind), nx,nT*nT); % x_TT
+            iC = sol.C1(outputlist(i),:);
+            
+            % dy(i)/dT
+            dydT(i,:) = iC * idxdT;
+            
+            % d2y(i)/dT2
+            d2ydT2(i,:) = iC * id2xdT2;
+        end
+        
+        dydTlog = bsxfun(@times, dydT, T.'); % T is normalized
+        
+        d2ydT2 = reshape(d2ydT2, n*nT,nT);
+        d2ydT2 = spermute132(bsxfun(@times, d2ydT2, T.'), [n,nT,nT], [n,nT*nT]); % Inner T is normalized
+        
+        dydTdiag = sparse(repmat(vec(1:n), 1,nT), repmat((0:nT+1:nT*nT-1)+1,n,1), dydT);
+        
+        val = dydTlog.' * (V \ d2ydT2) + dydTlog.' * (V \ reshape(dydTdiag, n,nT*nT));
+        val = val + spermute213(val, [nT,nT,nT], [nT,nT*nT]);
+        val = reshape(val, nT*nT,nT);
     end
 
 %% Probability density function
@@ -370,16 +397,16 @@ obj.Update = @update;
         % New measurements
         newMeasurements = zeros(n,1);
         for i = 1:n
-            t = discreteTimes == times(i);
-            newMeasurements(i) = sol.C1(outputs(i),:) * x(:,t) + sol.C2(outputs(i),:) * u(:,t) + sol.c(outputs(i),:);
-            newMeasurements(i) = newMeasurements(i) + randn*sd(times(i),outputs(i),newMeasurements(i));
+            t = discreteTimes == timelist(i);
+            newMeasurements(i) = sol.C1(outputlist(i),:) * x(:,t) + sol.C2(outputlist(i),:) * u(:,t) + sol.c(outputlist(i),:);
+            newMeasurements(i) = newMeasurements(i) + randn*sd(timelist(i),outputlist(i),newMeasurements(i));
         end
         
         if nonNegMeasurements
             newMeasurements(newMeasurements < 0) = 0;
         end
         
-        objNew = constructObjectiveChiSquare(m, outputs, times, sd, nonNegMeasurements, newMeasurements, false);
+        objNew = constructObjectiveChiSquare(m, outputlist, timelist, sd, nonNegMeasurements, newMeasurements, false);
     end
 
 %% AddExpectedData
@@ -398,12 +425,12 @@ obj.Update = @update;
         % New measurements
         newMeasurements = zeros(n,1);
         for i = 1:n
-            tInd = discreteTimes == times(i);
-            newMeasurements(i) = sol.C1(outputs(i),:) * x(:,tInd) + sol.C2(outputs(i),:) * u(:,tInd) + sol.c(outputs(i),:);
+            tInd = discreteTimes == timelist(i);
+            newMeasurements(i) = sol.C1(outputlist(i),:) * x(:,tInd) + sol.C2(outputlist(i),:) * u(:,tInd) + sol.c(outputlist(i),:);
         end
         
         % Build new objective function with perfect data
-        objNew = constructObjectiveChiSquare(m, outputs, times, sd, nonNegMeasurements, newMeasurements, true);
+        objNew = constructObjectiveChiSquare(m, outputlist, timelist, sd, nonNegMeasurements, newMeasurements, true);
     end
 
 %% QuantifyPrediction
@@ -438,8 +465,8 @@ obj.Update = @update;
         y1 = zeros(n,1);
         y2 = zeros(n,1);
         for i = 1:n
-            y1(i,1) = m.c(outputs(i),:)*x1(:,discreteTimes == times(i));
-            y2(i,1) = m.c(outputs(i),:)*x2(:,discreteTimes == times(i));
+            y1(i,1) = m.c(outputlist(i),:)*x1(:,discreteTimes == timelist(i));
+            y2(i,1) = m.c(outputlist(i),:)*x2(:,discreteTimes == timelist(i));
         end
         
         switch lower(type)
@@ -455,8 +482,8 @@ obj.Update = @update;
                 y1 = zeros(n,1);
                 y2 = zeros(n,1);
                 for i = 1:n
-                    y1(i,1) = m.c(outputs(i),:)*x1(:,discreteTimes == times(i));
-                    y2(i,1) = m.c(outputs(i),:)*x2(:,discreteTimes == times(i));
+                    y1(i,1) = m.c(outputlist(i),:)*x1(:,discreteTimes == timelist(i));
+                    y2(i,1) = m.c(outputlist(i),:)*x2(:,discreteTimes == timelist(i));
                 end
                 
                 % Difference
@@ -478,8 +505,8 @@ obj.Update = @update;
                 y1 = zeros(n,1);
                 y2 = zeros(n,1);
                 for i = 1:n
-                    y1(i,1) = m.c(outputs(i),:)*x1(:,discreteTimes == times(i));
-                    y2(i,1) = m.c(outputs(i),:)*x2(:,discreteTimes == times(i));
+                    y1(i,1) = m.c(outputlist(i),:)*x1(:,discreteTimes == timelist(i));
+                    y2(i,1) = m.c(outputlist(i),:)*x2(:,discreteTimes == timelist(i));
                 end
                 
                 % Difference
@@ -501,8 +528,8 @@ obj.Update = @update;
                 y1 = zeros(n,1);
                 y2 = zeros(n,1);
                 for i = 1:n
-                    y1(i,1) = m.c(outputs(i),:)*x1(:,discreteTimes == times(i));
-                    y2(i,1) = m.c(outputs(i),:)*x2(:,discreteTimes == times(i));
+                    y1(i,1) = m.c(outputlist(i),:)*x1(:,discreteTimes == timelist(i));
+                    y2(i,1) = m.c(outputlist(i),:)*x2(:,discreteTimes == timelist(i));
                 end
                 
                 % Difference
@@ -513,7 +540,7 @@ obj.Update = @update;
 
 %% Update
     function objNew = update(m, con, UseParams, UseICs, UseControls)
-        objNew = objectiveWeightedSumOfSquaresFixedToData(m, outputs, times, sd, nonNegMeasurements, measurements, perfect);
+        objNew = objectiveWeightedSumOfSquaresFixedToData(m, outputlist, timelist, sd, nonNegMeasurements, measurements, perfect, name);
     end
 
 %% Expected goal function
@@ -541,8 +568,8 @@ obj.Update = @update;
         % Get bias d for every point evaluated
         d = zeros(n,1);
         for i = 1:n
-            t = discreteTimes == times(i);
-            d(i,1) = sol.C1(outputs(i),:) * x(:,t) + sol.C2(outputs(i),:) * u(:,t) + sol.c(outputs(i),:) - measurements(i);
+            t = discreteTimes == timelist(i);
+            d(i,1) = sol.C1(outputlist(i),:) * x(:,t) + sol.C2(outputlist(i),:) * u(:,t) + sol.c(outputlist(i),:) - measurements(i);
         end
         
         % Sort by absolute value

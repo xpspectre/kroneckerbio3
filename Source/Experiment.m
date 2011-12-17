@@ -81,7 +81,7 @@ end
 if isempty(periodic)
     periodic = false;
 end
-if isempty(u)
+if isempty(u) && m.nu > 0
     u = m.u;
 end
 if isempty(q)

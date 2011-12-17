@@ -123,7 +123,7 @@ for iFile = 1:nFiles
                 
                 % Extract dimension
                 assert(~isempty(regexp(tokens{2}, '^\d$', 'once')), 'KroneckerBio:LoadModelMassAction:InvalidCompartmentDimension', 'Line %i in %s has an invalid compartment dimension: %s', lineNumber, files{iFile}, line)
-                dim = tokens{2};
+                dim = str2double(tokens{2});
                 
                 % Extract expressions into seperate cells
                 expressions = cell(0,1);

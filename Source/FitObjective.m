@@ -266,6 +266,12 @@ end
 T0(T0 < opts.LowerBound) = opts.LowerBound(T0 < opts.LowerBound);
 T0(T0 > opts.UpperBound) = opts.UpperBound(T0 > opts.UpperBound);
 
+%% Abort in rare case of no optimization
+if numel(T0) == 0
+    [G, D] = objective(T0);
+    return
+end
+
 %% Run optimization
 % Initialize loop
 That = T0;
@@ -278,7 +284,7 @@ for iRestart = 1:opts.Restart+1
     Tabort = That;
     
     if opts.Verbose; fprintf('Beginning gradient descent...\n'); end
-    [That, G, unused, unused, unused, D]  = fmincon(@objective, That, [], [], [], [], opts.LowerBound, opts.UpperBound, [], minOpts);
+    [That, G, unused, unused, unused, D] = fmincon(@objective, That, [], [], [], [], opts.LowerBound, opts.UpperBound, [], minOpts);
     
     % Check abortion status
     % Abortion values are not returned by fmincon and must be retrieved

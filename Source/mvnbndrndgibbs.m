@@ -122,7 +122,7 @@ end
 
     function y = boxIter(y)
         for k = randperm(m)
-            condmean = c(k,:) * y([1:k-1, k+1:m]);
+            condmean = c(k,:) * vec(y([1:k-1, k+1:m]));
             y(k) = normbndrnd(condmean, h(k), ylb(k), yub(k));
             %y(k) = randraw('normaltrunc', [ylb(k), yub(k), condmean, h(k)]);
         end
@@ -132,7 +132,7 @@ end
         z = Linv*y;
         for k = randperm(m)
             mk = [1:k-1, k+1:m]; % minus k: directions held constant
-            zbk = yb - zB(:,mk)*z(mk); % conditional bounds for zk
+            zbk = yb - zB(:,mk)*vec(z(mk)); % conditional bounds for zk
             zlb = max(zbk(zB(:,k) < 0) ./ zB(zB(:,k) < 0,k));
             zub = min(zbk(zB(:,k) > 0) ./ zB(zB(:,k) > 0,k));
             z(k) = normbndrnd(0, 1, zlb, zub);

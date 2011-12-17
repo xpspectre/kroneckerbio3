@@ -1,4 +1,4 @@
-function absTolRatio = GoodAbsTol(m, con, sd, opts)
+function absTol = GoodAbsTol(m, con, sd, opts)
 %GoodAbsTol Make a reasonable estimate as what the absolute tolerance on
 %   the species and sensitivities for objective calculations
 %
@@ -110,59 +110,53 @@ xGoodRatio = repmat(min(xRatio, [], 1), nx,1); % Keep most conservative and assi
 xGoodRatio = vec(xGoodRatio); % Straighten it
 
 %% Assemble the vectors for each experiment
-if ~opts.UseAdjoint
-    absTolRatio = cell(nCon,1);
-    for iCon = 1:nCon
-        % Experiment specific parameters
-        if opts.UseModelICs
-            T = [m.k(opts.UseParams); m.x0(opts.UseICs)]; % model initial conditions
-        else
-            T = [m.k(opts.UseParams); con(iCon).x0(opts.UseICs(:,iCon))]; % con initial conditions
-        end
-        
-        % dxdTGoodRatio
-        % If the model is linear, then the maximum value of dx/dT is x/T. A good
-        % ratio would therefore be x/T
-        dxdTGoodRatio = bsxfun(@rdivide, xGoodRatio, T.'); % x_T
-        dxdTGoodRatio = vec(dxdTGoodRatio); % xT_
-        
-        % Combine into one AbsTol ratio
-        absTolRatio{iCon} = [xGoodRatio; dxdTGoodRatio];
+absTol = emptystruct(nCon, 'System', 'Sensitivity', 'Adjoint', 'Doublesensitivity');
+for iCon = 1:nCon
+    % Experiment specific parameters
+    if opts.UseModelICs
+        T = [m.k(opts.UseParams); m.x0(opts.UseICs)]; % model initial conditions
+    else
+        T = [m.k(opts.UseParams); con(iCon).x0(opts.UseICs(:,iCon))]; % con initial conditions
     end
-else%UseAdjoint
-    absTolRatio = cell(nCon,1);
-    for iCon = 1:nCon
-        % Experiment specific parameters
-        if opts.UseModelICs
-            UseICsi = opts.UseICs;
-            T = [m.k(opts.UseParams); m.x0(UseICsi)]; % model initial conditions
-        else
-            UseICsi = opts.UseICs(:,iCon);
-            T = [m.k(opts.UseParams); con(iCon).x0(UseICsi)]; % con initial conditions
-        end
-        
-        % D ratio
-        % These elements are not computed in log space so their absolute
-        % value will be inversely proportational to theta.
-        DGoodRatio = 1 ./ T;
-        
-        % lambda ratio
-        % The effect that lambda has on D is through df/dT. Take the most
-        % conservative effect. If the odes are linear, then the maximum
-        % value of df/dT is x/T. A good ratio would therefore be x/T
-%         dxdTGoodRatio = bsxfun(@rdivide, xGoodRatio, T.'); % x_T
-%         effect = bsxfun(@rdivide, DGoodRatio, dxdTGoodRatio.'); % T / T_x
-%         lAbsTol = vec(max(effect, [], 1));
-        
-        % lambda ratio
-        % Because df/dT *{fxx} x ^{xx} -1 is on the order of lambda and on
-        % the order of 1, then lambda is on the order of 1
-        lAbsTol = ones(nx,1);
-        
-        % Zero entries are for those with no effect
-        lAbsTol(lAbsTol == 0) = inf;
-        
-        % Combine into one AbsTol ratio
-        absTolRatio{iCon} = [xGoodRatio; lAbsTol; DGoodRatio];
-    end
+    
+    % dxdTGoodRatio
+    % If the model is linear and x >= 0 for all T >= 0, then the
+    % maximum value of dx/dT is x/T. A good ratio would therefore be
+    % x/T
+    dxdTGoodRatio = bsxfun(@rdivide, xGoodRatio, T.'); % x_T
+    dxdTGoodRatio = vec(dxdTGoodRatio); % xT_
+    
+    % d2xdT2GoodRatio
+    % If the model is quadratic and x >= 0 for all T >= 0, then the
+    % maximum value of d2x/dT2 is 2*x/T^2. A good ratio would therefore
+    % be 2*x/T^2
+    d2xdT2GoodRatio = bsxfun(@rdivide, xGoodRatio, bsxfun(@times, T.', reshape(T, 1,1,nT))); % x_T_T
+    d2xdT2GoodRatio = vec(d2xdT2GoodRatio); % xTT_
+    
+    % D ratio
+    % These elements are not computed in log space so their absolute
+    % value will be inversely proportational to theta.
+    DGoodRatio = 1 ./ T;
+    
+    % lambda ratio
+    % The effect that lambda has on D is through df/dT. Take the most
+    % conservative effect. If the odes are linear, then the maximum
+    % value of df/dT is x/T. A good ratio would therefore be x/T
+%     dxdTGoodRatio = bsxfun(@rdivide, xGoodRatio, T.'); % x_T
+%     effect = bsxfun(@rdivide, DGoodRatio, dxdTGoodRatio.'); % T / T_x
+%     lAbsTol = vec(max(effect, [], 1));
+    
+    % Zero entries are for those with no effect
+%     lAbsTol(lAbsTol == 0) = inf;
+    
+    % lambda ratio
+    % Because df/dT *{fxx} x ^{xx} -1 is on the order of lambda and on
+    % the order of 1, then lambda is on the order of 1
+    lAbsTol = ones(nx,1);
+    
+    % Distribute heuristic AbsTols
+    absTol(iCon).System = opts.RelTol * xGoodRatio;
+    absTol(iCon).Sensitivity = opts.RelTol * [xGoodRatio; dxdTGoodRatio];
+    absTol(iCon).Adjoint = opts.RelTol * [xGoodRatio; lAbsTol; DGoodRatio];
+    absTol(iCon).Doublesensitivity = opts.RelTol * [xGoodRatio; dxdTGoodRatio; d2xdT2GoodRatio];
 end

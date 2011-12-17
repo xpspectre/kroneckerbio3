@@ -2,7 +2,7 @@
 # The distributed kinase and distributed phosphotase version of the MAP
 # kinase model
 
-% Compartments
+% Compartments MAPK-DKDP
 # There is no volume in this model, using 1 for volume
 v	3	1
 

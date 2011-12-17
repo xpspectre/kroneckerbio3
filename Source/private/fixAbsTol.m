@@ -76,31 +76,31 @@ switch order
                     if ~integrateObj(i)
                         % System
                         assert(isfield(temp, 'System'), 'KroneckerBio:AbsTol:MissingStructField', 'AbsTol is a struct but experiment %i requires a "System" field, which does not exist on the struct', i)
-                        if ~iscell(temp.System)
+%                         if ~iscell(temp.System)
                             % It is numeric, copy it to every experiment
-                            absTol{i} = temp.System;
-                        elseif numel(temp.System) == 1
-                            % Only one cell, copy it to every experiment
-                            absTol(i) = temp.System;
-                        else
-                            % Multiple cells, extract the correct one
-                            assert(numel(temp.System) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "System" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
-                            absTol(i) = temp.System(i);
-                        end
+                            absTol{i} = temp(i).System;
+%                         elseif numel(temp.System) == 1
+%                             % Only one cell, copy it to every experiment
+%                             absTol(i) = temp.System;
+%                         else
+%                             % Multiple cells, extract the correct one
+%                             assert(numel(temp.System) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "System" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
+%                             absTol(i) = temp.System(i);
+%                         end
                     else
                         % ObjectiveContinuous
                         assert(isfield(temp, 'ObjectiveContinuous'), 'KroneckerBio:AbsTol:MissingStructField', 'AbsTol is a struct but experiment %i requires a "ObjectiveContinuous" field, which does not exist on the struct', i)
-                        if ~iscell(temp.ObjectiveContinuous)
+%                         if ~iscell(temp.ObjectiveContinuous)
                             % It is numeric, copy it to every experiment
-                            absTol{i} = temp.ObjectiveContinuous;
-                        elseif numel(temp.ObjectiveContinuous) == 1
-                            % Only one cell, copy it to every experiment
-                            absTol(i) = temp.ObjectiveContinuous;
-                        else
-                            % Multiple cells, extract the correct one
-                            assert(numel(temp.ObjectiveContinuous) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "ObjectiveContinuous" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
-                            absTol(i) = temp.ObjectiveContinuous(i);
-                        end
+                            absTol{i} = temp(i).ObjectiveContinuous;
+%                         elseif numel(temp.ObjectiveContinuous) == 1
+%                             % Only one cell, copy it to every experiment
+%                             absTol(i) = temp.ObjectiveContinuous;
+%                         else
+%                             % Multiple cells, extract the correct one
+%                             assert(numel(temp.ObjectiveContinuous) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "ObjectiveContinuous" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
+%                             absTol(i) = temp.ObjectiveContinuous(i);
+%                         end
                     end
                 end
             end
@@ -155,61 +155,61 @@ switch order
                         if ~integrateObj(i)
                             % Sensitivity
                             assert(isfield(temp, 'Sensitivity'), 'KroneckerBio:AbsTol:MissingStructField', 'AbsTol is a struct but experiment %i requires a "Sensitivity" field, which does not exist on the struct', i)
-                            if ~iscell(temp.Sensitivity)
+%                             if ~iscell(temp(i).Sensitivity)
                                 % It is numeric, copy it to every experiment
-                                absTol{i} = temp.Sensitivity;
-                            elseif numel(temp.Sensitivity) == 1
-                                % Only one cell, copy it to every experiment
-                                absTol(i) = temp.Sensitivity;
-                            else
-                                % Multiple cells, extract the correct one
-                                assert(numel(temp.Sensitivity) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "Sensitivity" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
-                                absTol(i) = temp.Sensitivity(i);
-                            end
+                                absTol{i} = temp(i).Sensitivity;
+%                             elseif numel(temp) == 1 && numel(temp.Sensitivity) == 1
+%                                 % Only one cell, copy it to every experiment
+%                                 absTol(i) = temp.Sensitivity;
+%                             else
+%                                 % Multiple cells, extract the correct one
+%                                 assert(numel(temp(i).Sensitivity) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "Sensitivity" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
+%                                 absTol(i) = temp(i).Sensitivity(i);
+%                             end
                         else
                             % GradientContinuous
                             assert(isfield(temp, 'GradientContinuous'), 'KroneckerBio:AbsTol:MissingStructField', 'AbsTol is a struct but experiment %i requires a "GradientContinuous" field, which does not exist on the struct', i)
-                            if ~iscell(temp.GradientContinuous)
+%                             if ~iscell(temp(i).GradientContinuous)
                                 % It is numeric, copy it to every experiment
-                                absTol{i} = temp.GradientContinuous;
-                            elseif numel(temp.GradientContinuous) == 1
-                                % Only one cell, copy it to every experiment
-                                absTol(i) = temp.GradientContinuous;
-                            else
-                                % Multiple cells, extract the correct one
-                                assert(numel(temp.GradientContinuous) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "GradientContinuous" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
-                                absTol(i) = temp.GradientContinuous(i);
-                            end
+                                absTol{i} = temp(i).GradientContinuous;
+%                             elseif numel(temp(i).GradientContinuous) == 1
+%                                 % Only one cell, copy it to every experiment
+%                                 absTol(i) = temp(i).GradientContinuous;
+%                             else
+%                                 % Multiple cells, extract the correct one
+%                                 assert(numel(temp(i).GradientContinuous) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "GradientContinuous" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
+%                                 absTol(i) = temp(i).GradientContinuous(i);
+%                             end
                         end
                     else %useAdjoint
                         if ~integrateObj(i)
                             % Adjoint
                             assert(isfield(temp, 'Adjoint'), 'KroneckerBio:AbsTol:MissingStructField', 'AbsTol is a struct but experiment %i requires a "Adjoint" field, which does not exist on the struct', i)
-                            if ~iscell(temp.Adjoint)
+%                             if ~iscell(temp(i).Adjoint)
                                 % It is numeric, copy it to every experiment
-                                absTol{i} = temp.Adjoint;
-                            elseif numel(temp.Adjoint) == 1
-                                % Only one cell, copy it to every experiment
-                                absTol(i) = temp.Adjoint;
-                            else
-                                % Multiple cells, extract the correct one
-                                assert(numel(temp.Adjoint) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "Adjoint" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
-                                absTol(i) = temp.Adjoint(i);
-                            end
+                                absTol{i} = temp(i).Adjoint;
+%                             elseif numel(temp(i).Adjoint) == 1
+%                                 % Only one cell, copy it to every experiment
+%                                 absTol(i) = temp(i).Adjoint;
+%                             else
+%                                 % Multiple cells, extract the correct one
+%                                 assert(numel(temp(i).Adjoint) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "Adjoint" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
+%                                 absTol(i) = temp.Adjoint(i);
+%                             end
                         else
                             % AdjointContinuous
                             assert(isfield(temp, 'AdjointContinuous'), 'KroneckerBio:AbsTol:MissingStructField', 'AbsTol is a struct but experiment %i requires a "AdjointContinuous" field, which does not exist on the struct', i)
-                            if ~iscell(temp.AdjointContinuous)
+%                             if ~iscell(temp.AdjointContinuous)
                                 % It is numeric, copy it to every experiment
-                                absTol{i} = temp.AdjointContinuous;
-                            elseif numel(temp.AdjointContinuous) == 1
-                                % Only one cell, copy it to every experiment
-                                absTol(i) = temp.AdjointContinuous;
-                            else
-                                % Multiple cells, extract the correct one
-                                assert(numel(temp.AdjointContinuous) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "AdjointContinuous" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
-                                absTol(i) = temp.AdjointContinuous(i);
-                            end
+                                absTol{i} = temp(i).AdjointContinuous;
+%                             elseif numel(temp(i).AdjointContinuous) == 1
+%                                 % Only one cell, copy it to every experiment
+%                                 absTol(i) = temp(i).AdjointContinuous;
+%                             else
+%                                 % Multiple cells, extract the correct one
+%                                 assert(numel(temp(i).AdjointContinuous) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "AdjointContinuous" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
+%                                 absTol(i) = temp(i).AdjointContinuous(i);
+%                             end
                         end
                     end
                 end

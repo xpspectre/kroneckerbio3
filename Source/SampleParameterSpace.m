@@ -131,6 +131,9 @@ defaultOpts.ObjWeights     = ones(size(obj));
 defaultOpts.Normalized     = true;
 defaultOpts.UseAdjoint     = true;
 
+defaultOpts.LowerBound     = zeros(m.nk+m.nx, 1);
+defaultOpts.UpperBound     = inf(m.nk+m.nx, 1);
+
 defaultOpts.AdaptAcceptance = true; % Adapt the acceptance ratio
 defaultOpts.LowerAcceptance = 0.15; % The lowest acceptance ratio that is good
 defaultOpts.UpperAcceptance = 0.5;  % The highest acceptance ratio that is good
@@ -159,11 +162,11 @@ nObj = size(obj,1);
 
 nT = nTk + nTx + nTq;
 
-opts.LowerBound = fixBounds(opts.LowerBound, opts.UseParams, opts.UseICs, opts.UseModelICs);
-opts.UpperBound = fixBounds(opts.UpperBound, opts.UseParams, opts.UseICs, opts.UseModelICs);
+opts.LowerBound = fixBounds(opts.LowerBound, opts.UseModelICs, opts.UseModelInputs, opts.UseParams, opts.UseICs, opts.UseControls);
+opts.UpperBound = fixBounds(opts.UpperBound, opts.UseModelICs, opts.UseModelInputs, opts.UseParams, opts.UseICs, opts.UseControls);
 
 %% Starting parameter set
-T = collectActiveParameters(m, con, opts.UseParams, opts.UseICs, opts.UseModelICs);
+T = collectActiveParameters(m, con, opts.UseModelICs, opts.UseModelInputs, opts.UseParams, opts.UseICs, opts.UseControls);
 T = T'; % Sampler must have a row vector
 
 %% Variance of sample space
@@ -186,7 +189,6 @@ triedp   = currentp;    % Return this value for the current probability when the
 nextT    = T;           % A place to store the next tried parameter set until the current move is over
 nextp    = currentp;    % For the probability
 
-if verbose; fprintf('Metropolis-Hastings Monte Carlo sampling...\n'); end
 while true % dowhile
     % Reset last step
     isOnCurrent = true;

@@ -54,7 +54,7 @@ else
 end
 
 % Update experimental conditions
-if ~isempty(con)
+if ~isnumeric(con)
     conNew = Uzero(nCon);
     if useModelICs && useModelInputs
         for iCon = 1:nCon
@@ -76,7 +76,7 @@ if ~isempty(con)
 end
 
 % Update objective functions
-if ~isempty(obj)
+if ~isnumeric(obj)
     % refeshObj expects vector m
     obj = refreshObj(m, con, obj, useParams, useICs, useControls);
 end

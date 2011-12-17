@@ -47,7 +47,7 @@ for iCon = 1:nCon
     % * Integrate to steady-state
     if con(iCon).SteadyState
         ss = true;
-        ssSol = integrateSteadystateSys(m, con, intOpts);
+        ssSol = integrateSteadystateSys(m, con(iCon), intOpts);
         
         % Apply steady-state solution to initial conditions
         if opts.UseModelICs
@@ -152,10 +152,10 @@ for iCon = 1:nCon
         Tqind = Tqind + inTq;
     end
     
-    if verboseAll; fprintf('iCon = %d\t|dGdp| = %g\tTime = %0.2f\n', iCon, norm(curD), toc); end    
+    if verboseAll; fprintf('iCon = %d\t|dGdT| = %g\tTime = %0.2f\n', iCon, norm(curD), toc); end    
 end
 
-if opts.Verbose; fprintf('Summary: |dGdp| = %g\n', norm(D)); end
+if opts.Verbose; fprintf('Summary: |dGdT| = %g\n', norm(D)); end
 
 % End of function
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -227,7 +227,13 @@ if opts.Verbose; fprintf('Summary: |dGdp| = %g\n', norm(D)); end
 
     function [der, jac] = constructSteadystateSystem()
         dfdx = m.dfdx;
+        dfdu = m.dfdu;
         dfdT = @dfdTSub;
+        if opts.UseModelInputs
+            dudq = m.dudq;
+        else
+            dudq = con.dudq;
+        end
         
         der = @derivative;
         jac = @jacobian;

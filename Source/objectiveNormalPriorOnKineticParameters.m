@@ -1,4 +1,6 @@
 function obj = objectiveNormalPriorOnKineticParameters(m, kbar, Vkbar, UseParams, normalized, name)
+%obj = objectiveNormalPriorOnKineticParameters(m, kbar, Vkbar, UseParams,
+%normalized, name)
 
 % Clean up inputs
 if nargin < 6
@@ -84,6 +86,8 @@ obj.pvalue = @pvalue;
 obj.n      = nTk;
 
 obj.Update = @update;
+
+obj = pastestruct(Gzero(m), obj);
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Parameter fitting functions %%%%%

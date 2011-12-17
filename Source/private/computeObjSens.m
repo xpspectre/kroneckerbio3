@@ -24,7 +24,7 @@ Txind = nTk; % Stores the position in D where the first x0 parameter goes for ea
 Tqind = nTk+nTx; % Stores the position in D where the first q parameter goes for each iCon
 intOpts = opts;
 
-if opts.Verbose; disp('Integrating sensitivities:'); end
+if opts.Verbose; fprintf('Integrating sensitivities:\n'); end
 for iCon = 1:nCon
     if verboseAll; tic; end
     
@@ -106,7 +106,7 @@ for iCon = 1:nCon
     for iObj = 1:nObj
         for iDisc = 1:nDisc
             objDiscD = vec(vec(obj(iObj,iCon).dGdx(discreteTimes(iDisc), sol)).' * reshape(dxdT(:,iDisc), nx, inT)); % _x * x_T --> _T --> T_
-            temp = vec(obj(iObj,iCon).dGdk(discreteTimes(iDisc), sol)); % p_ % partial dGdp(i)
+            temp = vec(obj(iObj,iCon).dGdk(discreteTimes(iDisc), sol)); % k_ % partial dGdk(i)
             temp = [temp(opts.UseParams); zeros(inTx+inTq,1)]; % k_ --> T_
             objDiscD = objDiscD + temp; % T_
             discD(:,(iObj-1)*nDisc + iDisc) = opts.ObjWeights(iObj,iCon) * objDiscD; % T_ as a row in T_ot
