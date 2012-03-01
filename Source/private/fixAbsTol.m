@@ -185,17 +185,11 @@ switch order
                         if ~integrateObj(i)
                             % Adjoint
                             assert(isfield(temp, 'Adjoint'), 'KroneckerBio:AbsTol:MissingStructField', 'AbsTol is a struct but experiment %i requires a "Adjoint" field, which does not exist on the struct', i)
-%                             if ~iscell(temp(i).Adjoint)
-                                % It is numeric, copy it to every experiment
+                            if isscalar(temp)
+                                absTol{i} = temp.Adjoint;
+                            else
                                 absTol{i} = temp(i).Adjoint;
-%                             elseif numel(temp(i).Adjoint) == 1
-%                                 % Only one cell, copy it to every experiment
-%                                 absTol(i) = temp(i).Adjoint;
-%                             else
-%                                 % Multiple cells, extract the correct one
-%                                 assert(numel(temp(i).Adjoint) >= i, 'KroneckerBio:AbsTol:CellVectorTooShort', 'AbsTol is a struct and a cell vector is provided for "Adjoint" which is required for experiment %i, but the cell vector is not long enough to provide for this experiment', i)
-%                                 absTol(i) = temp.Adjoint(i);
-%                             end
+                            end
                         else
                             % AdjointContinuous
                             assert(isfield(temp, 'AdjointContinuous'), 'KroneckerBio:AbsTol:MissingStructField', 'AbsTol is a struct but experiment %i requires a "AdjointContinuous" field, which does not exist on the struct', i)

@@ -1,4 +1,4 @@
-function [bestCons data] = BestParameterExperiment(m, con, obj, posCon, posObj, goal, opts, F, EFs)
+function [bestCons data] = BestParameterExperiment(m, con, obj, conPos, objPos, goal, opts, F, EFs)
 %BESTPARAMETEREXPERIMENT Determine which experiments will most efficiently
 %   minimize a goal function of the fisher information matrix (FIM) of the
 %   objective function. Traditionally, this algorithm is used to minimize
@@ -8,12 +8,12 @@ function [bestCons data] = BestParameterExperiment(m, con, obj, posCon, posObj, 
 %
 %   This algorithm computes the current FIM according to the current
 %   experiments defined by con and obj. It then adds the expected FIM from
-%   each of the possible experiments defined by posCon and posObj and asks
+%   each of the possible experiments defined by conPos and objPos and asks
 %   the goal function to evaluate the resulting FIM. Finally, the function
 %   returns the index of the experiment that has the lowest expected goal
 %   function value.
 %
-%   [...] = BestParameterExperiment(m, con, obj, posCon, posObj, goal, opts)
+%   [...] = BestParameterExperiment(m, con, obj, conPos, objPos, goal, opts)
 %
 %   Inputs:
 %       m   - The KroneckerBio model of interest
@@ -23,8 +23,8 @@ function [bestCons data] = BestParameterExperiment(m, con, obj, posCon, posObj, 
 %       obj - A vector of structures, with each item corresponding to the
 %             objective function containing the measurements for the
 %             experiment
-%       posCon - A vector of experimental conditions that will be examined
-%       posObj - A vector of objective functions corresponding to the
+%       conPos - A vector of experimental conditions that will be examined
+%       objPos - A vector of objective functions corresponding to the
 %                measurement techique that will be applied under the
 %                possible experimental conditions
 %       goal   - A function handle @(F) that returns a scalar evaluation of
@@ -60,10 +60,10 @@ function [bestCons data] = BestParameterExperiment(m, con, obj, posCon, posObj, 
 %           Verbose       - Print progress to command window
 %
 %   Outputs:
-%       bestCons = FindBestExperiment(m, con, obj, posCon, posObj, goal, opts)
+%       bestCons = FindBestExperiment(m, con, obj, conPos, objPos, goal, opts)
 %       	bestCons - A vector of the indexes to the best experiments
 %
-%       [bestCons data] = FindBestExperiment(m, con, obj, posCon, posObj, goal, opts)
+%       [bestCons data] = FindBestExperiment(m, con, obj, conPos, objPos, goal, opts)
 %        	data - Includes a structure that holds the hessians and
 %                  goal function values at each iteration. This data
 %                  may be useful for analysis. It also can require a lot of
@@ -104,8 +104,8 @@ defaultOpts.ObjWeights      = ones(size(obj));
 defaultOpts.Normalized      = true;
 defaultOpts.UseAdjoint      = true;
 
-defaultOpts.UseExperiments  = true(size(obj));
-defaultOpts.Cost            = zeros(size(obj));
+defaultOpts.UseExperiments  = true(size(objPos));
+defaultOpts.Cost            = zeros(size(objPos));
 defaultOpts.ReturnCount     = 1;        % Number of experiments to return
 defaultOpts.MaxGreedySize   = 1;        % Number of experiments to consider at once for the greedy search. Inf = not greedy
 defaultOpts.Budget          = inf;
@@ -119,13 +119,13 @@ verbose = logical(opts.Verbose);
 opts.Verbose = max(opts.Verbose-1,0);
 
 % Constants
-nPosCon = numel(posCon);
-nPosObj = size(posObj,1);
-nPos = numel(posObj);
+nPosCon = numel(conPos);
+nPosObj = size(objPos,1);
+nPos = numel(objPos);
 
 %% Fix UseExperiments
 opts.UseExperiments = fixUseExperiments(opts.UseExperiments, nPosObj, nPosCon);
-remainingCons = find(opts.UseExperiments); % The indexes of the conditions allowed to be chosen
+remainingCons = vec(find(opts.UseExperiments)); % The indexes of the conditions allowed to be chosen
 nPos = numel(remainingCons);
 % The block size is bounded by MaxGreedySize, ReturnCount, and the total
 % number of experiments that can be completed in the budget
@@ -146,14 +146,14 @@ else
     maxSearchSize = nchoosek(nPos, blockSize);
 end
 
-%% Compute old hessian
+%% Compute old information
 if isempty(F)
     F = ObjectiveInformation(m, con, obj, opts);
 end
 
-%% Fetch expected hessians
+%% Fetch expected information
 if isempty(EFs)
-    [unused EFs] = ObjectiveInformation(m, posCon, posObj, opts);
+    [unused EFs] = ObjectiveInformation(m, conPos, objPos, opts);
 end
 
 %% Find best experiment
@@ -238,7 +238,7 @@ while remainingCount > 0 && bestGoal > opts.TerminalGoal && any(remainingBudget 
     if verbose
         for i = 1:numel(bestSet)
             [iObj iCon] = ind2sub([nPosObj,nPosCon], bestSet(i));
-            fprintf([posCon(iCon).Name ' ' posObj(bestSet(i)).Name ' was chosen\n']);
+            fprintf([conPos(iCon).Name ' ' objPos(bestSet(i)).Name ' was chosen\n']);
         end
         fprintf('Expected goal is %d\n', bestGoal);
     end

@@ -410,7 +410,7 @@ if isempty(yMembers)
     
     yValues = repmat({1}, ny,1);
 else
-    % yMembers is provided
+    % yMembers and yValues is provided
     if isa(yNames, 'char')
         ny = 1;
         yNames = {yNames};
@@ -430,6 +430,9 @@ else
     else
         error('KroneckerBio:symbolic2PseudoKronecker', 'Invalid type supplied for yNames')
     end
+    
+    yMembers = vec(yMembers);
+    yValues = vec(yValues);
 end
 
 %% Construct output matrices

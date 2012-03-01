@@ -1,5 +1,6 @@
 function p = zpvalue(x, mu, sigma)
 %ZPVALUE Upper-tail univariate normal p-value
+%
 %   p = zpvalue(x)
 %   p = zpvalue(x, mu)
 %   p = zpvalue(x, mu, sigma)

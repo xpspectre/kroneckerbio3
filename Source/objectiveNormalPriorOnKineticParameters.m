@@ -182,6 +182,6 @@ obj = pastestruct(Gzero(m), obj);
             newUseParams = UseParams;
         end
         
-        objNew = objectiveNormalPriorOnKineticParameters(m, kbar, Vkbar, newUseParams, normalized);
+        objNew = pastestruct(Gzero(m), objectiveNormalPriorOnKineticParameters(m, kbar, Vkbar, newUseParams, normalized));
     end
 end

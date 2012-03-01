@@ -61,6 +61,7 @@ nxuNew = m.add.nxu;
 
 % Check if item by this name already exists
 handled = false(nxuNew,1);
+xuNewUsed = true(nxuNew,1);
 for ixu = 1:nxuNew
     % Check existing states
     matchPosition = find(strcmp(m.add.Species(ixu).Name, {m.Species.Name}) & strcmp(m.add.Species(ixu).Compartment, {m.Species.Compartment}));
@@ -73,6 +74,7 @@ for ixu = 1:nxuNew
     matchPosition = find(strcmp(m.add.Species(ixu).Name, {m.add.Species(1:ixu-1).Name}) & strcmp(m.add.Species(ixu).Compartment, {m.add.Species(1:ixu-1).Compartment}));
     if ~isempty(matchPosition)
         handled(matchPosition) = true;
+        xuNewUsed(matchPosition) = false;
     end
 end
 
@@ -405,15 +407,15 @@ m.b  = sparse(bEntries(:,1),  bEntries(:,2),  bValues,  m.nv, 1);
 x0Handled = true(nx,1);
 uHandled = true(nu,1);
 xuNewInd = zeros(nxuNew,1);
-for ixuNew = 1:nxuNew
+for ixuNew = find(xuNewUsed)'
     % Index in Species.Names that this new Species applies
     xuIndi = find(strcmp(m.add.Species(ixuNew).Name, {m.Species.Name}) & strcmp(m.add.Species(ixuNew).Compartment, {m.Species.Compartment}));
     xuNewInd(ixuNew) = xuIndi;
     
-    if m.add.Species(ixuNew).IsInput
-        [m.Species(xuIndi).Value.Function uHandled(x0uInd(xuIndi))] = fixInputValueFunction(m.add.Species(ixuNew).Value.Function, m.add.Species(ixuNew).Units);
+    if m.Species(xuIndi).IsInput
+        [m.Species(xuIndi).Value.Function, uHandled(x0uInd(xuIndi))] = fixInputValueFunction(m.Species(xuIndi).Value.Function, m.add.Species(ixuNew).Units);
     else
-        [m.Species(xuIndi).Value x0Handled(x0uInd(xuIndi))] = fixStateInitialValue(m.add.Species(ixuNew).Value, m.add.Species(ixuNew).Units);
+        [m.Species(xuIndi).Value, x0Handled(x0uInd(xuIndi))] = fixStateInitialValue(m.Species(xuIndi).Value, m.add.Species(ixuNew).Units);
     end
 end
 
@@ -435,7 +437,7 @@ u = completeInputFunction(m.Species(isu));
 v0 = m.B1 * x0 + m.B2 * u(0) + m.b;
 
 %% Compute remaining species values
-for ixuNew = 1:nxuNew
+for ixuNew = find(xuNewUsed)'
     % Index in m.Species matching this new Species
     xuIndi = xuNewInd(ixuNew);
     
@@ -444,12 +446,12 @@ for ixuNew = 1:nxuNew
         % Index in m.Compartments
         vInd = strcmp(m.Species(xuIndi).Compartment, {m.Compartments.Name});
         
-        m.Species(xuIndi).Value.Function = fixInputValueFunction(m.add.Species(ixuNew).Value.Function, m.add.Species(ixuNew).Units, v0(vInd));
+        m.Species(xuIndi).Value.Function = fixInputValueFunction(m.Species(xuIndi).Value.Function, m.add.Species(ixuNew).Units, v0(vInd));
     elseif ~m.Species(xuIndi).IsInput && ~x0Handled(x0uInd(xuIndi))
         % Index in m.Compartments
         vInd = strcmp(m.Species(xuIndi).Compartment, {m.Compartments.Name});
         
-        m.Species(xuIndi).Value = fixStateInitialValue(m.add.Species(ixuNew).Value, m.add.Species(ixuNew).Units, v0(vInd));
+        m.Species(xuIndi).Value = fixStateInitialValue(m.Species(xuIndi).Value, m.add.Species(ixuNew).Units, v0(vInd));
     end
 end
 
@@ -505,7 +507,7 @@ for iy = 1:ny
         C1Entries(nC1Entries-nAdd+1:nC1Entries,1) = iy;
         C1Entries(nC1Entries-nAdd+1:nC1Entries,2) = match;
         C1Values(nC1Entries-nAdd+1:nC1Entries) = m.Outputs(iy).Values(iExpr);
-
+        
         % Find inputs that match the expression
         match = find(~cellfun(@isempty, regexp(uNamesFull, m.Outputs(iy).Expressions{iExpr}, 'once')));
         nAdd = numel(match);
@@ -1031,6 +1033,7 @@ m.dD6dk_rk_u  = spermute132(m.dD6dk, [nr,nu,nk],    [nr*nk,nu]);
 kRand = sparse(rand(nk,1));
 m.A1 = reshape(m.dA1dk * kRand, nx,nx);
 m.A2 = reshape(m.dA2dk * kRand, nx,nx*nx);
+%m.A2 = reshape(mtimestall(m.dA2dk, kRand), nx,nx*nx); % Matlab fail
 m.A3 = reshape(m.dA3dk * kRand, nx,nu*nx);
 m.A4 = reshape(m.dA4dk * kRand, nx,nx*nu);
 m.A5 = reshape(m.dA5dk * kRand, nx,nu*nu);
@@ -1039,6 +1042,7 @@ m.a  = m.dadk * kRand;
 
 m.D1 = reshape(m.dD1dk * kRand, nr,nx);
 m.D2 = reshape(m.dD2dk * kRand, nr,nx*nx);
+%m.D2 = reshape(mtimestall(m.dD2dk, kRand), nr,nx*nx);
 m.D3 = reshape(m.dD3dk * kRand, nr,nu*nx);
 m.D4 = reshape(m.dD4dk * kRand, nr,nx*nu);
 m.D5 = reshape(m.dD5dk * kRand, nr,nu*nu);
@@ -1090,7 +1094,8 @@ isu = cat(1, m.Species.IsInput, false(0,1));
 % Build kronecker matrices
 sparsek = sparse(m.k);
 m.A1 = reshape(m.dA1dk * sparsek, nx,nx);
-m.A2 = reshape(m.dA2dk * sparsek, nx,nx*nx);
+%m.A2 = reshape(m.dA2dk * sparsek, nx,nx*nx);
+m.A2 = reshape(mtimestall(m.dA2dk, sparsek), nx,nx*nx); % Matlab fail
 m.A3 = reshape(m.dA3dk * sparsek, nx,nu*nx);
 m.A4 = reshape(m.dA4dk * sparsek, nx,nx*nu);
 m.A5 = reshape(m.dA5dk * sparsek, nx,nu*nu);
@@ -1098,7 +1103,8 @@ m.A6 = reshape(m.dA6dk * sparsek, nx,nu);
 m.a  = m.dadk * m.k;
 
 m.D1 = reshape(m.dD1dk * sparsek, nr,nx);
-m.D2 = reshape(m.dD2dk * sparsek, nr,nx*nx);
+%m.D2 = reshape(m.dD2dk * sparsek, nr,nx*nx);
+m.D2 = reshape(mtimestall(m.dD2dk, sparsek), nr,nx*nx);
 m.D3 = reshape(m.dD3dk * sparsek, nr,nu*nx);
 m.D4 = reshape(m.dD4dk * sparsek, nr,nx*nu);
 m.D5 = reshape(m.dD5dk * sparsek, nr,nu*nu);

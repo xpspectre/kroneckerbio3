@@ -32,12 +32,6 @@ if nargin < 8
     end
 end
 
-% Special case: return empty structure array if inputs are numeric
-if isnumeric(m)
-    obj = emptystruct(m, 'Type', 'Name', 'DiscreteTimes', 'Continuous', 'Complex', 'G', 'dGdx', 'dGdk', 'd2Gdx2', 'd2Gdk2', 'd2Gdkdx', 'd2Gdxdk', 'F', 'Fn', 'p', 'pvalue', 'n', 'AddData', 'AddExpectedData', 'QuantifyPrediction', 'Update');
-    return
-end
-
 % Check inputs
 assert(isvector(outputlist), 'KroneckerBio:constructObjectiveChiSquare:outputlist', 'Input "outputlist" must be a vector.')
 n = length(outputlist);
@@ -53,7 +47,6 @@ clear temp
 
 % Constants
 nx = m.nx;
-nk = m.nk;
 
 % Find unique timelist
 discreteTimes = vec(unique(timelist)).';
@@ -94,6 +87,8 @@ obj.AddExpectedData = @AddExpectedData;
 obj.QuantifyPrediction = @QuantifyPrediction;
 
 obj.Update = @Update;
+
+obj = pastestruct(Gzero(m), obj);
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Parameter fitting functions %%%%%
@@ -377,7 +372,7 @@ obj.Update = @Update;
             newMeasurements(newMeasurements < 0) = 0;
         end
         
-        objNew = objectiveWeightedSumOfSquares(m, outputlist, timelist, sd, nonNegMeasurements, newMeasurements, false, name);
+        objNew = pastestruct(Gzero(m), objectiveWeightedSumOfSquares(m, outputlist, timelist, sd, nonNegMeasurements, newMeasurements, false, name));
     end
 
 %% AddExpectedData
@@ -401,7 +396,7 @@ obj.Update = @Update;
         end
         
         % Build new objective function with perfect data
-        objNew = objectiveWeightedSumOfSquaresVarying(m, outputlist, timelist, sd, nonNegMeasurements, newMeasurements, true);
+        objNew = pastestruct(Gzero(m), objectiveWeightedSumOfSquares(m, outputlist, timelist, sd, nonNegMeasurements, newMeasurements, true));
     end
 
 %% QuantifyPrediction
@@ -511,7 +506,7 @@ obj.Update = @Update;
 
 %% Update
     function objNew = Update(m, con, UseParams, UseICs, UseControls)
-        objNew = objectiveWeightedSumOfSquares(m, outputlist, timelist, sd, nonNegMeasurements, measurements, perfect);
+        objNew = pastestruct(Gzero(m), objectiveWeightedSumOfSquares(m, outputlist, timelist, sd, nonNegMeasurements, measurements, perfect));
     end
 
 %% Expected goal function

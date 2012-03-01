@@ -358,6 +358,9 @@ if strcmp(opts.BestTopologyMethod, 'hastings')
                     if ~opts.UseModelICs
                         optsSub.UseICs = [optsSub.UseICs, opts.UseICs{iTop}(:,nCon+iPosCon)];
                     end
+                    if ~opts.UseModelInputs
+                        optsSub.UseControls = [optsSub.UseControls; opts.UseControls{iTop}(nCon+iPosCon)];
+                    end
                     optsSub.AbsTol = [optsSub.AbsTol; opts.AbsTol{iTop}(nCon+iPosCon)];
                     mfit(iTop) = FitObjective(mfit(iTop), [con(:,iTop); conPos(iPosCon,iTop)], [[obj(:,:,iTop); objPrior(:,:,iTop)], [newObj; repmat(Gzero(m(iTop)), nObj+nObjPrior-1,1)]], optsSub);
                 end

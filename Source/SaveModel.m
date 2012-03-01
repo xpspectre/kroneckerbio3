@@ -22,6 +22,10 @@ fid = fopen(filename, 'w+t');
 fprintf(fid, '%% Compartments');
 if ~isempty(m.Name)
     % Write model name
+    if ~isempty(regexp(m.Name, '[\s,]', 'once'))
+        % Enclose name in quotes if it contains operators
+        m.Name = ['"' m.Name '"'];
+    end
     fprintf(fid, ' %s', m.Name);
 end
 fprintf(fid, '\n');

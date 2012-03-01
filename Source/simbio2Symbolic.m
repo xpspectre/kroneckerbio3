@@ -83,7 +83,7 @@ if nargin < 2
 end
 
 % Copy model object
-SimbioModel = copyobj(SimbioModel);
+%SimbioModel = copyobj(SimbioModel);
 
 %Options for displaying progress
 defaultOpts.Verbose = 0;

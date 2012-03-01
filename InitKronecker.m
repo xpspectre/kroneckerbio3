@@ -9,12 +9,17 @@ addpath([kroneckerPath '/Source']);
 addpath([kroneckerPath '/External']);
 addpath([kroneckerPath '/External/ode15sf']);
 
-% Compatibility paths
-matlabVersion = version('-release');
-year = str2double(regexp(matlabVersion, '\d*', 'match', 'once'));
+isoctave = exist('OCTAVE_VERSION', 'builtin');
 
-if year <= 2006
-    addpath([kroneckerPath '/Compatibility/2006'])
+if ~isoctave
+    % Compatibility paths
+    matlabVersion = version('-release');
+    year = str2double(regexp(matlabVersion, '\d*', 'match', 'once'));
+    
+    if year <= 2006
+        addpath([kroneckerPath '/Compatibility/2006'])
+    end
+else%isoctave
 end
 
 disp('KroneckerBio v0.3.0 alpha');

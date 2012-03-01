@@ -77,14 +77,15 @@ for iFile = 1:nFiles
                 mode = 1;
                 
                 % Extract model name
-                modelName = regexp(payload, '[^,.\s]*', 'match', 'once');
+                modelName = regexp(payload, '".*"|[^.,\s]*', 'match', 'once');
+                modelName = regexp(modelName, '[^"]*', 'match', 'once'); % Strip quotes
                 m = RenameModel(m, modelName);
             elseif strcmpi(match, 'species')
                 % Switch mode
                 mode = 2;
                 
                 % Extract default compartment from payload
-                defaultCompartment = regexp(payload, '[^.,\s]*', 'match');
+                defaultCompartment = regexp(payload, '".*"|[^.,\s]*', 'match');
                 assert(numel(defaultCompartment) <= 1, 'KroneckerBio:LoadModelMassAction:MultipleSpeciesCompartments', 'Line %i in %s specified multiple compartments for a single section of species; a species section can have at most one default compartment: %s', lineNumber, files{iFile}, line)
                 
                 % Standardize compartment as a string
@@ -104,7 +105,7 @@ for iFile = 1:nFiles
                 mode = 5;
 
                 % Extract default compartments from payload
-                defaultCompartment = regexp(payload, '[^.,\s]*', 'match');
+                defaultCompartment = regexp(payload, '".*"|[^.,\s]*', 'match');
             elseif strcmpi(match, 'units')
                 mode = 6;
             else
@@ -116,6 +117,11 @@ for iFile = 1:nFiles
                 % Compartments
                 tokens = vec(regexp(line, ',|".*"|[^\s,]*','match'));
                 assert(numel(tokens) >= 3, 'KroneckerBio:LoadModelMassAction:InsufficientCompartmentInformation', 'Line %i in %s does not provide the name, dimension, and volume required for a compartment: %s', lineNumber, files{iFile}, line)
+                
+                % Strip quotes
+                for iTok = 1:numel(tokens)
+                    tokens{iTok} = regexp(tokens{iTok}, '[^"]*', 'match', 'once');
+                end
                 
                 % Extract compartment name
                 assert(~isempty(regexp(tokens{1}, '^[^\s,.]*$', 'once')), 'KroneckerBio:LoadModelMassAction:InvalidName', 'Line %i in %s has an invalid compartment name: %s', lineNumber, files{iFile}, line)
@@ -184,6 +190,11 @@ for iFile = 1:nFiles
             elseif mode == 2
                 % Species
                 tokens = vec(regexp(line, ',|".*"|[^\s,]*','match'));
+                
+                % Strip quotes
+                for iTok = 1:numel(tokens)
+                    tokens{iTok} = regexp(tokens{iTok}, '[^"]*', 'match', 'once');
+                end
                 
                 % Extract species name
                 assert(~isempty(regexp(tokens{1}, '^[^\s,]*\.?[^\s,]*$', 'once')), 'KroneckerBio:LoadModelMassAction:InvalidName', 'Line %i in %s has an invalid species name: %s', lineNumber, files{iFile}, line)
@@ -300,6 +311,11 @@ for iFile = 1:nFiles
                 % Outputs
                 tokens = vec(regexp(line, ',|".*"|[^\s,]*','match'));
                 
+                % Strip quotes
+                for iTok = 1:numel(tokens)
+                    tokens{iTok} = regexp(tokens{iTok}, '[^"]*', 'match', 'once');
+                end
+                
                 % Extract output name
                 assert(~isempty(regexp(tokens{1}, '^[^\s,.]*$', 'once')), 'KroneckerBio:LoadModelMassAction:InvalidName', 'Line %i in %s has an invalid output name: %s', lineNumber, files{iFile}, line)
                 name = tokens{1};
@@ -364,6 +380,11 @@ for iFile = 1:nFiles
                 % Parameters
                 tokens = vec(regexp(line, ',|".*"|[^\s,]*','match'));
                 
+                % Strip quotes
+                for iTok = 1:numel(tokens)
+                    tokens{iTok} = regexp(tokens{iTok}, '[^"]*', 'match', 'once');
+                end
+                
                 % Extract parameter name
                 assert(~isempty(regexp(tokens{1}, '^[^\s,.]*$', 'once')), 'KroneckerBio:LoadModelMassAction:InvalidName', 'Line %i in %s has an invalid compartment name: %s', lineNumber, files{iFile}, line)
                 name = tokens{1};
@@ -403,9 +424,10 @@ for iFile = 1:nFiles
             end
         end
     end
+    
+    % Close the model file
+    fclose(fid);
 end
-
-fclose(fid);
 
 %% Finalize Model
 m = FinalizeModel(m);

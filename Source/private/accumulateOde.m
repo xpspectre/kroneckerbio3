@@ -160,7 +160,6 @@ for k = 1:(N-1)
             % Multiple outputs are required
             if isempty(events)
                 [simx simy] = ode15sf(der, tOde, ic, simOpts, u);
-                %[simx simy] = odeEuler(der, tOde, ic, simOpts, u);
                 simSol.x = simx';
                 simSol.y = simy';
             else

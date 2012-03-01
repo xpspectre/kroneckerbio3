@@ -14,5 +14,14 @@ else
     
     % Stack the parameters in a cell vector
     q = {inputs.Parameters}.';
-    u = @(t)cellfun(@feval, uEach, repmat({t}, nu,1), q);
+    u = @(t)inputStack(t);
+end
+
+    function val = inputStack(t)
+        % Evaluate each individual input function
+        val = cellfun(@feval, uEach, repmat({t}, nu,1), q, 'UniformOutput', false);
+        
+        % Collapse the cell array into a matrix
+        val = cat(1, val{:});
+    end
 end
