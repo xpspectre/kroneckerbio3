@@ -109,6 +109,7 @@ if opts.VolumeToParameter
     kSyms = [kSyms; vSyms];
 else% ~VolumeToParameter
     r = subs(r, vSyms, vValues, 0);
+    f = subs(f, vSyms, vValues, 0);
 end
 
 % Generate derivatives of desired order
@@ -961,7 +962,7 @@ if verbose; fprintf('done.\n'); end
 %%%%% Update function %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    function varargout = update(newk, newx0, newq)
+function varargout = update(newk, newx0, newq)
         % Apply changes
         k = newk;
         x0 = newx0;
