@@ -3,7 +3,7 @@ function kronModel = LoadModelSbmlAnalytic(simbioModel, uNames, yNames, yMembers
 %   model, which interacts with much of the Kronecker toolbox exactly like
 %   a Kronecker model, but with substantial performance reductions.
 % 
-%   m = LoadModelSbmlAnalytic(SimbioModel, uNames, yNames, yMembers, opts)
+%   m = LoadModelSbmlAnalytic(SimbioModel, uNames, yNames, yMembers, yValues, opts)
 %
 %   Inputs
 %   simbioModel: [ path string | SimBiology Model scalar | 
@@ -21,6 +21,12 @@ function kronModel = LoadModelSbmlAnalytic(simbioModel, uNames, yNames, yMembers
 %       will only reflect the concentration of a single species.
 %   yMembers: [ cell vector ny of cell vectors of strings | {}]
 %       The names of the species to be included in each output
+%   yValues: [ cell vector of nonegative vectors ]
+%       Each numeric entry in this vector is associated with one of the
+%       expressions. This value tells how much a species will contribute
+%       when it matches the corresponding expressions. If a species is
+%       matched by multiple expressions, the last expression to match
+%       overrides all others.
 %   opts: [ options struct scalar ]
 %       Optional
 %       .Verbose [ logical scalar {false} ]

@@ -292,6 +292,10 @@ if ~isempty(d2fdx2)
     d2fdxdu(:,~isu,:)   = [];
     d2fdxdu(:,:,isu)    = [];
     d2fdxdu             = reshape(d2fdxdu, nx*nu,nx);
+else
+    d2fdu2  = '';
+    d2fdudx = '';
+    d2fdxdu = '';
 end
 
 % d2fdk2

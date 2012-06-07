@@ -18,7 +18,7 @@ function SymModel = simbio2Symbolic(SimbioModel, opts)
 %
 %   Outputs
 %       SymModel
-%       	.XNames    - nx by 1 cell vector of strings containing the
+%       	.xuNames   - nx by 1 cell vector of strings containing the
 %                        natural names of the species
 %           .kNames    - nk by 1 cell vector of strings containing the
 %                        natural names of the rate constants
